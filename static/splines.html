@@ -265,6 +265,15 @@ function animate(t2,whenDone){
         if(whenDone){whenDone()};
     },3000);
 }
+
+// Normal distribution sampling code from http://www.protonfish.com/random.shtml
+function rnd_snd() {
+    return (Math.random()*2-1)+(Math.random()*2-1)+(Math.random()*2-1);
+}
+function rnd(mean, stdev) {
+    return Math.round(rnd_snd()*stdev+mean);
+}
+
 function main(t){
     var e=document.getElementById("canvas1");
     e.width=600;
@@ -273,13 +282,33 @@ function main(t){
     var ctx=e.getContext('2d');
     if(!ctx){return}
     ctx.clearRect(0,0,e.width,e.height);
-    ctx.scale(1.5,1.5);
+    //ctx.scale(1.5,1.5);
     //   Drawing a spline takes one call.  The points are an array [x0,y0,x1,y1,...],
     //   the tension is t (typically 0.33 to 0.5), and true/false tells whether to
     //   connect the endpoints of the data to make a closed curve.
-    drawSpline(ctx,[20,50,100,100,150,50,200,150,250,50,300,70,310,130,380,30],t,false);
-    drawSpline(ctx,[50,200,150,200,150,300,50,300],t,true);
-    drawSpline(ctx,[260,240,360,240,310,340],t,true);
+
+    // Spline drawing code comes from http://scaledinnovation.com/analytics/splines/aboutSplines.html
+    var xs = [0];
+    var ys = [e.height/2];
+    var y = e.height/2;
+    for(var i=0;i<15;i++) {
+        x = (e.width/15) * i;
+        r = 5555555555555555;
+        while(r+y < 0 || r+y > e.height) {
+            r = rnd(0, 20);
+        }
+        y += r;
+        xs.push(x);
+        ys.push(y);
+    }
+    var points = [];
+    for(var point in xs) {
+        xs.push(x);
+        points.push(xs[point]);
+        points.push(ys[point]);
+    }
+
+    drawSpline(ctx,points,t,false);
     //   Update the passive display of tension t.
     document.getElementById("t").value=Math.round(1000*t)/1000;
 }
@@ -306,7 +335,6 @@ tension t <input disabled="disabled" class="text" id='t' type='text' value='0.5'
 <canvas id='canvas1'>
 <div style="padding:72px;text-align:center;font:18pt bold serif">
     This page requires a modern HTML5-compliant browser, such as Safari, Firefox, Chrome, or Opera.<br/>
-   <img src="splineDefault.png" width="300" height="225" border="0">
 </div>
 </canvas>
 </div>
