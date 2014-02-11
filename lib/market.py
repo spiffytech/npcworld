@@ -29,5 +29,23 @@ NPC.__new__ = partial(
 )
 
 def miner_produce(npc):
-    if has_wood(npc) and has_tools(npc):
-        npc = npc.replace(inventory=inventory.replace(food=4))
+    inventory = npc.inventory
+    print inventory
+    if has_food(inventory) and has_tools(inventory):
+        delta = dict(food=inventory.food-1, ore=inventory.ore+4)
+        inventory = inventory._replace(**delta)
+    return npc._replace(inventory=inventory)
+        
+def farmer_produce(npc):
+    inventory = npc.inventory
+    if has_wood(inventory) and has_tools(inventory):
+        delta = dict(wood=inventory.wood-1, food=inventory.food+4)
+        inventory = inventory._replace(**delta)
+    return npc._replace(inventory=inventory)
+
+def lumberjack_produce(npc):
+    inventory = npc.inventory
+    if has_food(inventory) and has_tools(inventory):
+        delta = dict(food=inventory.food-1, wood=inventory.wood+4)
+        inventory = inventory._replace(**delta)
+    return npc._replace(inventory=inventory)

@@ -48,3 +48,21 @@ def test_default_npc():
     npc = market.NPC()
     assert npc.inventory == market.Inventory()
     assert npc.occupation is None
+
+def test_lumberjack_produce():
+    npc = market.NPC()
+    updated_npc = market.lumberjack_produce(npc)
+    assert updated_npc.inventory.wood == npc.inventory.wood+4
+    assert updated_npc.inventory.food == npc.inventory.food-1
+
+def test_farmer_produce():
+    npc = market.NPC()
+    updated_npc = market.farmer_produce(npc)
+    assert updated_npc.inventory.food == npc.inventory.food+4
+    assert updated_npc.inventory.wood == npc.inventory.wood-1
+
+def test_miner_produce():
+    npc = market.NPC()
+    updated_npc = market.miner_produce(npc)
+    assert updated_npc.inventory.ore == npc.inventory.ore+4
+    assert updated_npc.inventory.food == npc.inventory.food-1
