@@ -50,19 +50,82 @@ def test_default_npc():
     assert npc.occupation is None
 
 def test_lumberjack_produce():
-    npc = market.NPC()
+    lumberjack = market.NPC(occupation="lumberjack")
+    npc = lumberjack._replace(inventory=market.Inventory(tools=0, food=0))
     updated_npc = market.lumberjack_produce(npc)
-    assert updated_npc.inventory.wood == npc.inventory.wood+4
+    assert updated_npc.inventory == npc.inventory
+
+    npc = lumberjack
+    updated_npc = market.lumberjack_produce(npc)
+    assert updated_npc.inventory.wood == npc.inventory.wood+2
+    assert updated_npc.inventory.food == npc.inventory.food-1
+
+    npc = lumberjack._replace(inventory=market.Inventory(tools=0))
+    updated_npc = market.lumberjack_produce(npc)
+    assert updated_npc.inventory.wood == npc.inventory.wood+1
     assert updated_npc.inventory.food == npc.inventory.food-1
 
 def test_farmer_produce():
-    npc = market.NPC()
-    updated_npc = market.farmer_produce(npc)
+    farmer = market.NPC(occupation="farmer")
+    npc = farmer._replace(inventory=market.Inventory(tools=0, wood=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory == npc.inventory
+
+    npc = farmer
+    updated_npc = market.get_work_fn(npc)(npc)
     assert updated_npc.inventory.food == npc.inventory.food+4
     assert updated_npc.inventory.wood == npc.inventory.wood-1
 
+    npc = farmer._replace(inventory=market.Inventory(tools=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory.food == npc.inventory.food+2
+    assert updated_npc.inventory.wood == npc.inventory.wood-1
+
 def test_miner_produce():
-    npc = market.NPC()
-    updated_npc = market.miner_produce(npc)
+    miner = market.NPC(occupation="miner")
+    npc = miner._replace(inventory=market.Inventory(tools=0, food=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory == npc.inventory
+
+    npc = miner
+    updated_npc = market.get_work_fn(npc)(npc)
     assert updated_npc.inventory.ore == npc.inventory.ore+4
     assert updated_npc.inventory.food == npc.inventory.food-1
+
+    npc = miner._replace(inventory=market.Inventory(tools=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory.ore == npc.inventory.ore+2
+    assert updated_npc.inventory.food == npc.inventory.food-1
+
+def test_refiner_produce():
+    refiner = market.NPC(occupation="refiner")
+    npc = refiner._replace(inventory=market.Inventory(tools=0, food=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory == npc.inventory
+
+    npc = refiner
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory.metal == npc.inventory.metal+1
+    assert updated_npc.inventory.ore == 0
+    assert updated_npc.inventory.food == npc.inventory.food-1
+
+    npc = refiner._replace(inventory=market.Inventory(tools=0))
+    updated_npc = market.get_work_fn(npc)(npc)
+    assert updated_npc.inventory.metal == npc.inventory.metal+1
+    assert updated_npc.inventory.ore == npc.inventory.ore-2
+    assert updated_npc.inventory.food == npc.inventory.food-1
+
+#def test_miner_produce():
+#    npc = market.NPC(inventory=market.Inventory(tools=0, food=0))
+#    updated_npc = market.miner_produce(npc)
+#    assert updated_npc.inventory == npc.inventory
+#
+#    npc = market.NPC()
+#    updated_npc = market.miner_produce(npc)
+#    assert updated_npc.inventory.ore == npc.inventory.ore+4
+#    assert updated_npc.inventory.food == npc.inventory.food-1
+#
+#    npc = market.NPC(inventory=market.Inventory(tools=0))
+#    updated_npc = market.miner_produce(npc)
+#    assert updated_npc.inventory.ore == npc.inventory.ore+2
+#    assert updated_npc.inventory.food == npc.inventory.food-1
