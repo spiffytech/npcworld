@@ -46,6 +46,34 @@ input.text{
     margin:0 0 0 1em;
 }
 </style>
+<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+<body>
+<img id="cloud" src="/static/cloud.png" style="display: none;">
+<div style="position:absolute;top:0px;right:12px;text-align:right;">
+back to <a href='http://scaledinnovation.com'>Scaled Innovation</a><br/><br/>
+<a href="aboutSplines.html">about the geometry</a>
+</div>
+<h1>Spline Interpolation</h1>
+<div id='gFrame'>
+tension t <input disabled="disabled" class="text" id='t' type='text' value='0.5'/></td>
+<input id='details'  type='checkbox' checked='checked' value='true'/>show details
+<input class="button" id='animate' style='margin:0 0 0 2em' type='button' onclick='multiAnimate()' value='animate'/>
+<input class="button" type='button' onclick='main(0)' value='t = 0'/>
+<input class="button" type='button' onclick='main(1/5)' value='t = 1/5'/>
+<input class="button" type='button' onclick='main(1/2)' value='t = 1/2'/>
+<input class="button" type='button' onclick='main(1)' value='t = 1'/>
+<input class="button" type='button' onclick='main(2)' value='t = 2'/>
+<input class="button" type='button' onclick='main(-1)' value='t = -1'/>
+
+<div id="canvasFrame">
+<canvas id='canvas1'>
+<div style="padding:72px;text-align:center;font:18pt bold serif">
+    This page requires a modern HTML5-compliant browser, such as Safari, Firefox, Chrome, or Opera.<br/>
+</div>
+</canvas>
+</div>
+</div>
+</body>
 <script type="text/javascript">
 /*
 	Copyright 2010 by Robin W. Spencer
@@ -274,6 +302,13 @@ function rnd(mean, stdev) {
     return Math.round(rnd_snd()*stdev+mean);
 }
 
+jQuery(document).ready(function() {
+    setTimeout(
+    function() {
+        main(0.5);
+    }, 500);
+});
+
 function main(t){
     var e=document.getElementById("canvas1");
     e.width=600;
@@ -287,12 +322,37 @@ function main(t){
     //   the tension is t (typically 0.33 to 0.5), and true/false tells whether to
     //   connect the endpoints of the data to make a closed curve.
 
+    // Sky gradient
+    var gradient = ctx.createLinearGradient(0, e.height, 0, 0);
+    gradient.addColorStop(0, "white");
+    gradient.addColorStop(1, "#01B2FF");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, e.width, e.height);
+
+    xlines = [e.width-1, 0, (2*(e.width/3)), e.width/2, e.width/3];
+    ylines = [e.height-1, 0, (2*(e.height/3)), e.height/2, e.height/3];
+    for(var xline in xlines) {
+        ctx.moveTo(0.5 + xlines[xline], 0);
+        ctx.lineTo(0.5 + xlines[xline], e.height);
+    }
+    for(var yline in ylines) {
+        ctx.moveTo(0, 0.5 + ylines[yline]);
+        ctx.lineTo(e.width, 0.5 + ylines[yline]);
+    }
+    //ctx.strokeStyle = "#ccc";
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
+    // Cloud image
+    var cloud = document.getElementById("cloud");
+    ctx.drawImage(cloud, 1*(e.width/3), 1*(e.height/5), 402/4, 263/4);
+
     // Spline drawing code comes from http://scaledinnovation.com/analytics/splines/aboutSplines.html
     var xs = [0];
-    var ys = [e.height/2];
+    var ys = [2*(e.height/3)];
     var y = e.height/2;
     for(var i=0;i<15;i++) {
-        x = (e.width/15) * i;
+        x = (e.width/15) * (i+1);
         r = 5555555555555555;
         while(r+y < 0 || r+y > e.height) {
             r = rnd(0, 20);
@@ -314,30 +374,4 @@ function main(t){
 }
 </script>
 </head>
-<body onload="main(0.5);">
-<div style="position:absolute;top:0px;right:12px;text-align:right;">
-back to <a href='http://scaledinnovation.com'>Scaled Innovation</a><br/><br/>
-<a href="aboutSplines.html">about the geometry</a>
-</div>
-<h1>Spline Interpolation</h1>
-<div id='gFrame'>
-tension t <input disabled="disabled" class="text" id='t' type='text' value='0.5'/></td>
-<input id='details'  type='checkbox' checked='checked' value='true'/>show details
-<input class="button" id='animate' style='margin:0 0 0 2em' type='button' onclick='multiAnimate()' value='animate'/>
-<input class="button" type='button' onclick='main(0)' value='t = 0'/>
-<input class="button" type='button' onclick='main(1/5)' value='t = 1/5'/>
-<input class="button" type='button' onclick='main(1/2)' value='t = 1/2'/>
-<input class="button" type='button' onclick='main(1)' value='t = 1'/>
-<input class="button" type='button' onclick='main(2)' value='t = 2'/>
-<input class="button" type='button' onclick='main(-1)' value='t = -1'/>
-
-<div id="canvasFrame">
-<canvas id='canvas1'>
-<div style="padding:72px;text-align:center;font:18pt bold serif">
-    This page requires a modern HTML5-compliant browser, such as Safari, Firefox, Chrome, or Opera.<br/>
-</div>
-</canvas>
-</div>
-</div>
-</body>
 </html>
