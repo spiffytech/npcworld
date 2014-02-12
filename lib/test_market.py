@@ -68,64 +68,71 @@ def test_lumberjack_produce():
 def test_farmer_produce():
     farmer = market.NPC(occupation="farmer")
     npc = farmer._replace(inventory=market.Inventory(tools=0, wood=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory == npc.inventory
 
     npc = farmer
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.food == npc.inventory.food+4
     assert updated_npc.inventory.wood == npc.inventory.wood-1
 
     npc = farmer._replace(inventory=market.Inventory(tools=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.food == npc.inventory.food+2
     assert updated_npc.inventory.wood == npc.inventory.wood-1
 
 def test_miner_produce():
     miner = market.NPC(occupation="miner")
     npc = miner._replace(inventory=market.Inventory(tools=0, food=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory == npc.inventory
 
     npc = miner
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.ore == npc.inventory.ore+4
     assert updated_npc.inventory.food == npc.inventory.food-1
 
     npc = miner._replace(inventory=market.Inventory(tools=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.ore == npc.inventory.ore+2
     assert updated_npc.inventory.food == npc.inventory.food-1
 
 def test_refiner_produce():
     refiner = market.NPC(occupation="refiner")
     npc = refiner._replace(inventory=market.Inventory(tools=0, food=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory == npc.inventory
 
     npc = refiner
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.metal == npc.inventory.metal+1
     assert updated_npc.inventory.ore == 0
     assert updated_npc.inventory.food == npc.inventory.food-1
 
     npc = refiner._replace(inventory=market.Inventory(tools=0))
-    updated_npc = market.get_work_fn(npc)(npc)
+    updated_npc = market.do_work(npc)
     assert updated_npc.inventory.metal == npc.inventory.metal+1
     assert updated_npc.inventory.ore == npc.inventory.ore-2
     assert updated_npc.inventory.food == npc.inventory.food-1
 
-#def test_miner_produce():
-#    npc = market.NPC(inventory=market.Inventory(tools=0, food=0))
-#    updated_npc = market.miner_produce(npc)
-#    assert updated_npc.inventory == npc.inventory
-#
-#    npc = market.NPC()
-#    updated_npc = market.miner_produce(npc)
-#    assert updated_npc.inventory.ore == npc.inventory.ore+4
-#    assert updated_npc.inventory.food == npc.inventory.food-1
-#
-#    npc = market.NPC(inventory=market.Inventory(tools=0))
-#    updated_npc = market.miner_produce(npc)
-#    assert updated_npc.inventory.ore == npc.inventory.ore+2
-#    assert updated_npc.inventory.food == npc.inventory.food-1
+class TestTrades(object):
+    def test_avg_price(self):
+        trade_history = tuple(market.Trade(resource=t[0], price=t[1]) for t in (
+            ("wood", 20),
+            ("wood", 30),
+            ("wood", 35),
+            ("wood", 33),
+            ("wood", 29),
+            ("wood", 20),
+            # Things that aren't wood, to ensure filtering for the resource in question works right
+            ("food", 90),
+            ("food", 70),
+        ))
+        assert market.avg_price("wood", trade_history) == 27
+
+
+    def estimate_npc_price(self):
+        lower = 2
+        upper = 20
+        intervals = market.Intervals(wood=(lower, upper))
+        assert lower <= market.estimate_npc_price("wood", intervals) <= upper

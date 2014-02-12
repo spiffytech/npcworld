@@ -1,5 +1,14 @@
 from collections import namedtuple
 from functools import partial
+import random
+from fn import _
+from fn.iters import *
+
+def pseudo_normal():
+    return (Math.random()*2-1)+(Math.random()*2-1)+(Math.random()*2-1);
+
+def rand_from_normal():
+    return Math.round(rnd_snd()*stdev+mean);
 
 # Look at ways to set default values on namedtuples from http://stackoverflow.com/questions/11351032/named-tuple-and-optional-keyword-arguments
 
@@ -9,6 +18,10 @@ Inventory.__new__ = partial(Inventory.__new__, wood=10, food=10, ore=10, metal=1
 
 ResourceDelta = namedtuple("ResourceDelta", ["wood", "food", "ore", "metal", "tools", "dollars"])
 ResourceDelta.__new__ = partial(ResourceDelta.__new__, wood=0, food=0, ore=0, metal=0, tools=0, dollars=0)
+
+#Bid = namedtuple("Bid", ["npc", "resource", "price"])
+#Ask = namedtuple("Ask", ["npc", "resource", "price"])
+Trade = namedtuple("Trade", ["resource", "price"])
 
 def has_wood(obj):
     return obj.wood > 0
@@ -21,12 +34,18 @@ def has_metal(obj):
 def has_tools(obj):
     return obj.tools > 0
 
-NPC = namedtuple("NPC", ["occupation", "inventory"], True)
+PriceIntervals = namedtuple("PriceIntervals", ["wood", "food", "ore", "metal", "tools"])
+PriceIntervals.__new__ = partial(PriceIntervals.__new__, wood=0, food=0, ore=0, metal=0, tools=0)
+
+NPC = namedtuple("NPC", ["occupation", "inventory", "price_intervals"], True)
 NPC.__new__ = partial(
     NPC.__new__,
     occupation=None,
     inventory=Inventory(),
+    price_intervals=PriceIntervals(),
 )
+
+trade_history = ()
 
 def miner_produce(npc):
     inventory = npc.inventory
@@ -80,3 +99,23 @@ def get_work_fn(npc):
         refiner=refiner_produce,
     )
     return occupation_work[npc.occupation]
+
+def do_work(npc):
+    return get_work_fn(npc)(npc)
+
+def avg_price(resource, trade_history):
+    '''Histories are lists of Trade items'''
+    if len(trade_history) == 0:
+        raise RuntimeError("Need trades to estimate the history of")
+
+    these_trades = (h for h in trade_history if h.resource == resource)
+    n = 8
+    to_inspect = tuple(takelast(n, these_trades))
+    return sum(map(_.price, to_inspect))/len(to_inspect)
+
+def estimate_npc_price(resource, intervals):
+    interval = getattr(intervals, resource)
+    return random.randint(interval[0], interval[1])
+
+def estimate_market_price(resource):
+    return avg_price(trade_history, resource)
