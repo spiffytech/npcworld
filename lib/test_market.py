@@ -117,7 +117,7 @@ def test_refiner_produce():
 
 class TestTrades(object):
     def test_avg_price(self):
-        trade_history = tuple(market.Trade(resource=t[0], price=t[1]) for t in (
+        trade_history = tuple(market.Trade(resource=t[0], price=t[1], type="buy") for t in (
             ("wood", 20),
             ("wood", 30),
             ("wood", 35),
@@ -136,3 +136,44 @@ class TestTrades(object):
         upper = 20
         intervals = market.Intervals(wood=(lower, upper))
         assert lower <= market.estimate_npc_price("wood", intervals) <= upper
+
+    def test_translate_interval(self):
+        mean = 50
+        interval = (25, 75)
+        new_interval = market.translate_interval(interval, mean)
+        assert new_interval == interval
+
+        mean = 150
+        interval = (40, 60)
+        new_interval = market.translate_interval(interval, mean)
+        assert new_interval == (45, 65)
+
+    def test_shrink_interval(self):
+        assert market.shrink_interval((100, 1000)) == (105, 950)
+
+    def test_expand_interval(self):
+        assert market.expand_interval((100, 1000)) == (95, 1050)
+
+    def test_update_beliefs_accepted(self):
+        interval=(40, 60)
+        trade = market.Trade(resource="wood", price=150, type="buy")
+        npc = market.NPC(trade_history=(
+            market.Trade(resource="wood", price=140, type="buy"),
+            market.Trade(resource="wood", price=160, type="buy")
+        ), belief_intervals=market.BeliefIntervals(wood=interval))
+        new_npc = market.update_beliefs_accepted(npc, trade)
+        assert new_npc.belief_intervals.wood == market.shrink_interval((40, 60))
+
+        trade = market.Trade(resource="wood", price=50, type="buy")
+        new_npc = market.update_beliefs_accepted(npc, trade)
+        assert new_npc.belief_intervals.wood == market.shrink_interval((45, 65))
+
+    def test_update_beliefs_rejected(self):
+        interval=(40, 60)
+        trade = market.Trade(resource="wood", price=50, type="buy")
+        npc = market.NPC(trade_history=(
+            market.Trade(resource="wood", price=140, type="buy"),
+            market.Trade(resource="wood", price=160, type="buy")
+        ), belief_intervals=market.BeliefIntervals(wood=interval))
+        new_npc = market.update_beliefs_rejected(npc, trade)
+        assert new_npc.belief_intervals.wood == market.expand_interval((45, 65))
