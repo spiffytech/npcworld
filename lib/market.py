@@ -1,3 +1,4 @@
+from __future__ import division
 from collections import namedtuple
 from functools import partial
 import random
@@ -142,7 +143,7 @@ def update_beliefs(npc, trade):
 def update_beliefs_accepted(npc, trade):
     mean = avg_price(trade.resource, npc.trade_history)
     interval = getattr(npc.belief_intervals, trade.resource)
-    if abs(trade.price - mean) > (mean * .33):
+    if not (.66 < (trade.price/mean) < 1.33):
         interval = translate_interval(interval, mean)
 
     interval = shrink_interval(interval)

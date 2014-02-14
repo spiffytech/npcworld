@@ -128,7 +128,7 @@ class TestTrades(object):
             ("food", 90),
             ("food", 70),
         ))
-        assert market.avg_price("wood", trade_history) == 27
+        assert round(market.avg_price("wood", trade_history), 2) == 27.83
 
 
     def estimate_npc_price(self):
@@ -156,17 +156,33 @@ class TestTrades(object):
 
     def test_update_beliefs_accepted(self):
         interval=(40, 60)
+        mean = 150
+        translated_shrunken = market.shrink_interval(market.translate_interval(interval, mean))
+        shrunken = market.shrink_interval(interval)
+
         trade = market.Trade(resource="wood", price=150, type="buy")
         npc = market.NPC(trade_history=(
             market.Trade(resource="wood", price=140, type="buy"),
             market.Trade(resource="wood", price=160, type="buy")
         ), belief_intervals=market.BeliefIntervals(wood=interval))
         new_npc = market.update_beliefs_accepted(npc, trade)
-        assert new_npc.belief_intervals.wood == market.shrink_interval((40, 60))
+        assert new_npc.belief_intervals.wood == shrunken  # No interval translation
 
-        trade = market.Trade(resource="wood", price=50, type="buy")
+        # Test lower bounds
+        trade = market.Trade(resource="wood", price=99, type="buy")
         new_npc = market.update_beliefs_accepted(npc, trade)
-        assert new_npc.belief_intervals.wood == market.shrink_interval((45, 65))
+        assert new_npc.belief_intervals.wood == translated_shrunken  # Interval translation
+        trade = market.Trade(resource="wood", price=100, type="buy")
+        new_npc = market.update_beliefs_accepted(npc, trade)
+        assert new_npc.belief_intervals.wood == shrunken
+
+        # Test upper bounds
+        trade = market.Trade(resource="wood", price=199, type="buy")
+        new_npc = market.update_beliefs_accepted(npc, trade)
+        assert new_npc.belief_intervals.wood == shrunken  # Interval translation
+        trade = market.Trade(resource="wood", price=200, type="buy")
+        new_npc = market.update_beliefs_accepted(npc, trade)
+        assert new_npc.belief_intervals.wood == translated_shrunken
 
     def test_update_beliefs_rejected(self):
         interval=(40, 60)
