@@ -193,3 +193,10 @@ class TestTrades(object):
         ), belief_intervals=market.BeliefIntervals(wood=interval))
         new_npc = market.update_beliefs_rejected(npc, trade)
         assert new_npc.belief_intervals.wood == market.expand_interval((45, 65))
+
+    def test_get_buy_resources(self):
+        assert market.get_buy_resources("farmer") == ["wood", "tools"]
+        assert market.get_buy_resources("lumberjack") == ["food", "tools"]
+        assert market.get_buy_resources("refiner") == ["food", "ore", "tools"]
+        assert market.get_buy_resources("miner") == ["food", "tools"]
+        assert market.get_buy_resources("blacksmith") == ["metal"]

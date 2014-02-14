@@ -2,7 +2,7 @@ from __future__ import division
 from collections import namedtuple
 from functools import partial
 import random
-from fn import _
+from fn import _, Stream
 from fn.iters import *
 
 def pseudo_normal():
@@ -159,3 +159,36 @@ def update_beliefs_rejected(npc, trade):
 
     npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
     return npc
+
+
+def get_sell_resource(occupation):
+    return dict(
+        farmer="food",
+        lumberjack="wood",
+        miner="ore",
+        refiner="metal",
+    )[occupation]
+
+
+def get_buy_resources(occupation):
+    return dict(
+        farmer = ["wood", "tools"],
+        lumberjack = ["food", "tools"],
+        miner = ["food", "tools"],
+        refiner = ["food", "ore", "tools"],
+        blacksmith = ["metal"],
+    )[occupation]
+
+
+def create_ask(npc, resource):
+    price = estimate_npc_price(resource, npc.belief_intervals)
+    num_to_sell = max(limit, ideal)
+
+
+def determine_sale_quantity(npc):
+    resource = get_sell_resource(occupation)
+    mean = avg_price()
+
+def determine_purchase_quantity(npc):
+    resources = get_purchaser_resources(occupation)
+    mean = avg_price()
