@@ -39,13 +39,12 @@ def has_tools(obj):
 BeliefIntervals = namedtuple("BeliefIntervals", ["wood", "food", "ore", "metal", "tools"])
 BeliefIntervals.__new__ = partial(BeliefIntervals.__new__, wood=0, food=0, ore=0, metal=0, tools=0)
 
-NPC = namedtuple("NPC", ["occupation", "inventory", "belief_intervals", "trade_history"])
+NPC = namedtuple("NPC", ["occupation", "inventory", "belief_intervals"])
 NPC.__new__ = partial(
     NPC.__new__,
     occupation=None,
     inventory=Inventory(),
     belief_intervals=BeliefIntervals(),
-    trade_history=(),
 )
 
 trade_history = ()
@@ -140,8 +139,8 @@ def update_beliefs(npc, trade):
     fn = update_beliefs_accepted if trade.status == "accepted" else update_beliefs_rejected
     return fn(npc, trade)
 
-def update_beliefs_accepted(npc, trade):
-    mean = avg_price(trade.resource, npc.trade_history)
+def update_beliefs_accepted(npc, trade_history, trade):
+    mean = avg_price(trade.resource, trade_history)
     interval = getattr(npc.belief_intervals, trade.resource)
     if not (.66 < (trade.price/mean) < 1.33):
         interval = translate_interval(interval, mean)
@@ -151,8 +150,8 @@ def update_beliefs_accepted(npc, trade):
     npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
     return npc
 
-def update_beliefs_rejected(npc, trade):
-    mean = avg_price(trade.resource, npc.trade_history)
+def update_beliefs_rejected(npc, trade_history, trade):
+    mean = avg_price(trade.resource, trade_history)
     interval = getattr(npc.belief_intervals, trade.resource)
     interval = translate_interval(interval, mean)
     interval = expand_interval(interval)
@@ -185,7 +184,7 @@ def create_ask(npc, resource):
     num_to_sell = max(limit, ideal)
 
 
-def determine_sale_quantity(npc):
+def determine_sale_quantity(npc, price):
     resource = get_sell_resource(occupation)
     mean = avg_price()
 
