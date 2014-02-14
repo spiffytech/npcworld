@@ -105,15 +105,27 @@ def get_work_fn(npc):
 def do_work(npc):
     return get_work_fn(npc)(npc)
 
-def avg_price(resource, trade_history):
-    '''Histories are lists of Trade items'''
+def avg_price(resource):
+    '''Histories are lists of lists of Trade items'''
     if len(trade_history) == 0:
         raise RuntimeError("Need trades to estimate the history of")
 
-    these_trades = (h for h in trade_history if h.resource == resource)
+    def avg(nums):
+        """Averages an interable"""
+        totals = reduce(lambda x, y: (x[0]+y, x[1]+1), nums, (0,0))
+        assert totals[1] != 0
+        return totals[0]/totals[1]
+
+    filter_nonzero = lambda t: len(t) > 0
+    filter_relevant = lambda trades: tuple(trade for trade in trades if trade.status == "accepted" and trade.resource == resource)
+
     n = 8
-    to_inspect = tuple(takelast(n, these_trades))
-    return sum(map(_.price, to_inspect))/len(to_inspect)
+    trades = filter(
+        filter_nonzero,
+        map(filter_relevant, takelast(n, trade_history))
+    )
+    averages = map(lambda tuple_: avg(t.price for t in tuple_), trades)
+    return avg(averages)
 
 def estimate_market_price(resource):
     return avg_price(trade_history, resource)
@@ -139,8 +151,8 @@ def update_beliefs(npc, trade):
     fn = update_beliefs_accepted if trade.status == "accepted" else update_beliefs_rejected
     return fn(npc, trade)
 
-def update_beliefs_accepted(npc, trade_history, trade):
-    mean = avg_price(trade.resource, trade_history)
+def update_beliefs_accepted(npc, trade):
+    mean = avg_price(trade.resource)
     interval = getattr(npc.belief_intervals, trade.resource)
     if not (.66 < (trade.price/mean) < 1.33):
         interval = translate_interval(interval, mean)
@@ -150,8 +162,8 @@ def update_beliefs_accepted(npc, trade_history, trade):
     npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
     return npc
 
-def update_beliefs_rejected(npc, trade_history, trade):
-    mean = avg_price(trade.resource, trade_history)
+def update_beliefs_rejected(npc, trade):
+    mean = avg_price(trade.resource)
     interval = getattr(npc.belief_intervals, trade.resource)
     interval = translate_interval(interval, mean)
     interval = expand_interval(interval)
