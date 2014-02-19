@@ -168,6 +168,12 @@ class TestTrades(object):
         price = 99
         assert market.interval_is_divergent(interval, price, mean) == market.translate_interval(interval, mean)
 
+        price = 199
+        assert market.interval_is_divergent(interval, price, mean) == interval
+
+        price = 200
+        assert market.interval_is_divergent(interval, price, mean) == market.translate_interval(interval, mean)
+
     def test_update_beliefs_accepted(self):
         interval=(40, 60)
         mean = 150

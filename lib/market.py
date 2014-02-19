@@ -159,7 +159,7 @@ def interval_is_divergent(interval, price, mean):
 
 def update_beliefs_accepted(npc, trade):
     mean = avg_price(trade.resource)
-    f = F() << shrink_interval << F(interval_is_divergent, price=trade.price, mean=mean) 
+    f = F() >> F(interval_is_divergent, price=trade.price, mean=mean) >> shrink_interval
 
     interval = f(getattr(npc.belief_intervals, trade.resource))
 
