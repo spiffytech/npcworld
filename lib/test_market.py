@@ -159,6 +159,15 @@ class TestTrades(object):
     def test_expand_interval(self):
         assert market.expand_interval((100, 1000)) == (95, 1050)
 
+    def test_interval_is_divergent(self):
+        interval = (130, 150)
+        price = 100
+        mean = 150
+        assert market.interval_is_divergent(interval, price, mean) == interval
+
+        price = 99
+        assert market.interval_is_divergent(interval, price, mean) == market.translate_interval(interval, mean)
+
     def test_update_beliefs_accepted(self):
         interval=(40, 60)
         mean = 150

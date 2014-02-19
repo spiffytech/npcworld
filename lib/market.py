@@ -151,13 +151,17 @@ def update_beliefs(npc, trade):
     fn = update_beliefs_accepted if trade.status == "accepted" else update_beliefs_rejected
     return fn(npc, trade)
 
+def interval_is_divergent(interval, price, mean):
+    if not (.66 < (price/mean) < 1.33):
+        return translate_interval(interval, mean)
+    else:
+        return interval
+
 def update_beliefs_accepted(npc, trade):
     mean = avg_price(trade.resource)
-    interval = getattr(npc.belief_intervals, trade.resource)
-    if not (.66 < (trade.price/mean) < 1.33):
-        interval = translate_interval(interval, mean)
+    f = F() << shrink_interval << F(interval_is_divergent, price=trade.price, mean=mean) 
 
-    interval = shrink_interval(interval)
+    interval = f(getattr(npc.belief_intervals, trade.resource))
 
     npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
     return npc
