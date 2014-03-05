@@ -1,9 +1,12 @@
 from __future__ import division
 from collections import namedtuple
 from functools import partial
+import math
 import random
 from fn import _, Stream
 from fn.iters import *
+
+from attr_update import attr_update
 
 def pseudo_normal():
     return (Math.random()*2-1)+(Math.random()*2-1)+(Math.random()*2-1);
@@ -37,7 +40,7 @@ def has_tools(obj):
     return obj.tools > 0
 
 BeliefIntervals = namedtuple("BeliefIntervals", ["wood", "food", "ore", "metal", "tools"])
-BeliefIntervals.__new__ = partial(BeliefIntervals.__new__, wood=0, food=0, ore=0, metal=0, tools=0)
+BeliefIntervals.__new__ = partial(BeliefIntervals.__new__, wood=None, food=None, ore=None, metal=None, tools=None)
 
 NPC = namedtuple("NPC", ["occupation", "inventory", "belief_intervals"])
 NPC.__new__ = partial(
@@ -134,9 +137,12 @@ def estimate_npc_price(resource, intervals):
     interval = getattr(intervals, resource)
     return random.randint(interval[0], interval[1])
 
+def calc_midpoint(x, y):
+    return (x+y)/2
+
 def translate_interval(interval, mean):
     """Translates an interval towards the mean"""
-    midpoint = (interval[1] + interval[0])/2
+    midpoint = calc_midpoint(*interval)
     increment = (mean - midpoint) * .05
     interval = (interval[0]+increment, interval[1]+increment)
     return interval
@@ -173,6 +179,7 @@ def update_beliefs_rejected(npc, trade):
     interval = expand_interval(interval)
 
     npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
+    #npc = attr_update(npc, "belief_intervals", **{trade.resource: interval})
     return npc
 
 
@@ -195,15 +202,42 @@ def get_buy_resources(occupation):
     )[occupation]
 
 
+def calc_amt_to_trade(favorability, inventory):
+    return math.floor(favorability * inventory)
+
+
+def calc_favorability(interval, mean):
+    """Range of 0-1. Low number means our belief range is above the market average, high means we're below."""
+    return min(1, max(0, mean-interval[0])/(interval[1]-interval[0]))
+
+
 def create_ask(npc, resource):
     price = estimate_npc_price(resource, npc.belief_intervals)
     num_to_sell = max(limit, ideal)
 
 
-def determine_sale_quantity(npc, price):
-    resource = get_sell_resource(occupation)
-    mean = avg_price()
+def determine_trade_quantity(npc, resource_fn, fav_fn):
+    resource = resource_fn(npc.occupation)
+    mean = avg_price(resource)
+    favorability = fav_fn(getattr(npc.belief_intervals, resource), mean)
+    amt_to_trade = calc_amt_to_trade(favorability, getattr(npc.inventory, resource))
+    return amt_to_trade
+
+
+def determine_sale_quantity(npc):
+    return determine_trade_quantity(
+        npc,
+        resource_fn=get_sell_resource,
+        fav_fn=calc_favorability  # Low -> we believe something is worth more than the market does now. High -> the market thinks it's worth what we do, sell sell sell!
+    )
+
 
 def determine_purchase_quantity(npc):
-    resources = get_purchaser_resources(occupation)
-    mean = avg_price()
+    def determine_which_to_buy(resources):  # TODO: Do something more useful here
+        return sorted(resources, key=lambda resource: getattr(npc.inventory, resource))[0]
+
+    return determine_trade_quantity(
+        npc,
+        resource_fn=lambda occupation: determine_which_to_buy(get_buy_resources(occupation)),
+        fav_fn=lambda *args, **kwargs: 1-calc_favorability(*args, **kwargs)  # This means we're measuring how far below our belief the market average is. Buy when we belief something is cheap.
+    )

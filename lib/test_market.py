@@ -222,3 +222,54 @@ class TestTrades(object):
         assert market.get_buy_resources("refiner") == ["food", "ore", "tools"]
         assert market.get_buy_resources("miner") == ["food", "tools"]
         assert market.get_buy_resources("blacksmith") == ["metal"]
+
+    def test_favorability(self):
+        assert market.calc_favorability((120, 160), 150) == .75
+
+    def test_amt_to_trade(self):
+        assert market.calc_amt_to_trade(.75, 4) == 3
+        assert market.calc_amt_to_trade(.75, 3) == 2
+
+    def test_determine_trade_quantity(self):
+        market.trade_history = ((
+            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+        ),)
+
+        npc = market.NPC(
+            occupation="lumberjack",
+            belief_intervals=market.BeliefIntervals(wood=(120, 160)),
+            inventory=market.Inventory(wood=4)
+        )
+
+        assert market.determine_trade_quantity(npc, market.get_sell_resource, market.calc_favorability) == 3
+
+    def test_determine_sale_quantity(self):
+        market.trade_history = ((
+            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+        ),)
+
+        npc = market.NPC(
+            occupation="lumberjack",
+            belief_intervals=market.BeliefIntervals(wood=(120, 160)),
+            inventory=market.Inventory(wood=4)
+        )
+
+        assert market.determine_sale_quantity(npc) == 3
+
+
+    def test_determine_purchase_quantity(self):
+        market.trade_history = ((
+            market.Trade(resource="food", price=140, type="buy", status="accepted"),
+            market.Trade(resource="food", price=160, type="buy", status="accepted")
+        ),)
+
+        npc = market.NPC(
+            occupation="lumberjack",
+            belief_intervals=market.BeliefIntervals(food=(120, 160)),
+            inventory=market.Inventory(food=4)
+        )
+
+        assert market.determine_purchase_quantity(npc) == 1
+
