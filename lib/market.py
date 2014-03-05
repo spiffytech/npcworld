@@ -54,14 +54,14 @@ trade_history = ()
 
 def miner_produce(npc):
     inventory = npc.inventory
-    print inventory
     if has_food(inventory): 
         if has_tools(inventory):
             delta = dict(food=inventory.food-1, ore=inventory.ore+4)
         else:
             delta = dict(food=inventory.food-1, ore=inventory.ore+2)
-        inventory = inventory._replace(**delta)
-    return npc._replace(inventory=inventory)
+    else:
+        delta = {}
+    return attr_update(npc, "inventory", **delta)
         
 def farmer_produce(npc):
     inventory = npc.inventory
@@ -70,8 +70,9 @@ def farmer_produce(npc):
             delta = dict(wood=inventory.wood-1, food=inventory.food+4)
         else:
             delta = dict(wood=inventory.wood-1, food=inventory.food+2)
-        inventory = inventory._replace(**delta)
-    return npc._replace(inventory=inventory)
+    else:
+        delta = {}
+    return attr_update(npc, "inventory", **delta)
 
 def lumberjack_produce(npc):
     inventory = npc.inventory
@@ -80,8 +81,9 @@ def lumberjack_produce(npc):
             delta = dict(food=inventory.food-1, wood=inventory.wood+2)
         else:
             delta = dict(food=inventory.food-1, wood=inventory.wood+1)
-        inventory = inventory._replace(**delta)
-    return npc._replace(inventory=inventory)
+    else:
+        delta = {}
+    return attr_update(npc, "inventory", **delta)
 
 def refiner_produce(npc):
     inventory = npc.inventory
@@ -90,10 +92,9 @@ def refiner_produce(npc):
             delta = dict(ore=0, food=inventory.food-1, metal=inventory.metal+1)
         elif inventory.ore >= 2:
             delta = dict(ore=inventory.ore-2, food=inventory.food-1, metal=inventory.metal+1)
-        else:
-            delta = dict()
-        inventory = inventory._replace(**delta)
-    return npc._replace(inventory=inventory)
+    else:
+        delta = {}
+    return attr_update(npc, "inventory", **delta)
 
 
 def get_work_fn(npc):
@@ -169,8 +170,7 @@ def update_beliefs_accepted(npc, trade):
 
     interval = f(getattr(npc.belief_intervals, trade.resource))
 
-    npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
-    return npc
+    return attr_update(npc, "belief_intervals", **{trade.resource: interval})
 
 def update_beliefs_rejected(npc, trade):
     mean = avg_price(trade.resource)
@@ -178,8 +178,7 @@ def update_beliefs_rejected(npc, trade):
     interval = translate_interval(interval, mean)
     interval = expand_interval(interval)
 
-    npc = npc._replace(belief_intervals=npc.belief_intervals._replace(**{trade.resource: interval}))
-    #npc = attr_update(npc, "belief_intervals", **{trade.resource: interval})
+    npc = attr_update(npc, "belief_intervals", **{trade.resource: interval})
     return npc
 
 
