@@ -6,6 +6,7 @@ app = Flask(__name__, static_path="/static")
 import math
 from pprint import pprint
 import random
+import time
 
 freqs_e = {}
 freqs_m = {}
@@ -26,10 +27,12 @@ def sample_noise():
     freqs_k = {}
     raw_noise = []
 
+    offset = time.time()
+
     max_x = 1200
     max_y = 600
-    octaves=4
-    persistence=.5
+    octaves=6
+    persistence=.25
     scale=2
     smoothness=.003  # .003 works OK
     f=simplex2
@@ -46,8 +49,8 @@ def sample_noise():
                 octaves=octaves,
                 persistence=persistence,  # amplitude
                 scale=scale,  # frequency
-                x=x*smoothness,
-                y=y*smoothness
+                x=(x+offset)*smoothness,
+                y=(y+offset)*smoothness
             )
         ) for y in xrange(max_y))
         for x in xrange(max_x)
@@ -74,31 +77,31 @@ def colorize(elevation, moisture):
 
     terrains = {
         # (elevation,moisture)
-        (0,6): (54, 54, 97),  # Deep water
-        (0,5): (54, 54, 97),  # Deep water
-        (0,4): (54, 54, 97),  # Deep water
-        (0,3): (85, 125, 166),  # Shallow water
-        (0,2): (85, 125, 166),  # Shallow water
         (0,1): (85, 125, 166),  # Shallow water
+        (0,2): (85, 125, 166),  # Shallow water
+        (0,3): (85, 125, 166),  # Shallow water
+        (0,4): (54, 54, 97),  # Deep water
+        (0,5): (54, 54, 97),  # Deep water
+        (0,6): (54, 54, 97),  # Deep water
 
-        (1,1): (233, 221, 199),  # Subtropical desert
-        (1,2): (196, 212, 170),  # Grassland
-        (1,3): (169, 204, 164),  # Tropical seasonal forest
-        (1,4): (169, 204, 164),  # Also tropical seasonal forest
-        (1,5): (157, 187, 169),  # Tropical rainforest
-        (1,6): (157, 187, 169),  # Also tropical rainforest
+        (1,1): (189, 116, 23),  # Subtropical desert
+        (1,2): (113, 161, 59),  # Grassland
+        (1,3): (4, 38, 8),  # Tropical seasonal forest
+        (1,4): (4, 38, 8),  # Tropical seasonal forest
+        (1,5): (42, 92, 11),  # Tropical rainforest
+        (1,6): (42, 92, 11),  # Tropical rainforest
 
-        (2,1): (228, 232, 202),  # Temperate desert
-        (2,2): (196, 212, 170),  # Grassland
-        (2,3): (196, 212, 170),  # Grassland
-        (2,4): (180, 201, 169),  # Temperate deciduous forest
-        (2,5): (180, 201, 169),  # Temperate deciduous forest
-        (2,6): (164, 196, 168),  # Temperate rainforest
+        (2,1): (196, 171 ,40),  # Temperate desert
+        (2,2): (113, 161, 59),  # Grassland
+        (2,3): (113, 161, 59),  # Grassland
+        (2,4): (128, 143, 18),  # Temperate deciduous forest
+        (2,5): (128, 143, 18),  # Temperate deciduous forest
+        (2,6): (68, 82, 47),  # Temperate rainforest
 
-        (3,1): (228, 232, 202),  # Temperate desert
-        (3,2): (228, 232, 202),  # Temperate desert
-        (3,3): (196, 204, 187),  # Shrubland
-        (3,4): (196, 204, 187),  # Shrubland
+        (3,1): (196, 171 ,40),  # Temperate desert
+        (3,2): (196, 171 ,40),  # Temperate desert
+        (3,3): (221, 244, 133),  # Shrubland
+        (3,4): (221, 244, 133),  # Shrubland
         (3,5): (204, 212, 187),  # Taiga
         (3,6): (204, 212, 187),  # Taiga
 
