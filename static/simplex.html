@@ -1,6 +1,7 @@
 <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
 
-<canvas id="canvas1" width="150" height="150"></canvas>
+<canvas id="canvas1" width="1200" height="600"></canvas>
+<div id="status"></div>
 
 <script type="text/javascript">
 function setPixel(imageData, x, y, r, g, b, a) {
@@ -19,12 +20,33 @@ jQuery(document).ready(function() {
     // create a new batch of pixels with the same
     // dimensions as the image:
     imageData = c.createImageData(element.width, element.height);
-    for(x=0;x<150;x++) {
-        for(y=0;y<150;y++) {
-            setPixel(imageData, x, y, x+y, x+y, x+y, 255);
+
+    max_x=1200
+    max_y=600
+    scale_factor=1
+
+    jQuery("#status").text("calling...");
+    jQuery.get("http://worldsim.spiffyte.ch:5000/sample_noise", function(data) {
+        jQuery("#status").text("called");
+        data = data["grid"];
+        for(x=0;x<max_x;x++) {
+            for(y=0;y<max_y;y++) {
+                for(fx=0;fx<scale_factor;fx++) {
+                    for(fy=0;fy<scale_factor;fy++) {
+                        if(data[x][y] < 50) {
+                            setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, 0, 0, 255, 255);
+                        } else if(data[x][y] < 200) {
+                            setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, 0, 255, 0, 255);
+                        } else {
+                            setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, data[x][y], data[x][y], data[x][y], 255);
+                        }
+                    }
+                }
+            }
         }
-    }
-    c.putImageData(imageData, 0, 0);
+        c.putImageData(imageData, 0, 0);
+        jQuery("#status").text("complete");
+    });
 });
 
 </script>

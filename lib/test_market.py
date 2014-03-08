@@ -119,7 +119,7 @@ class TestTrades(object):
     def test_avg_price(self):
         market.trade_history = (
             tuple(
-                market.Trade(resource=t[0], price=t[1], type="buy", status="accepted") for t in (
+                market.Trade(resource=t[0], price=t[1], type="buy", requested=3, status="accepted") for t in (
 
                     ("wood", 20),
                     ("wood", 30),
@@ -180,37 +180,37 @@ class TestTrades(object):
         translated_shrunken = market.shrink_interval(market.translate_interval(interval, mean))
         shrunken = market.shrink_interval(interval)
 
-        trade = market.Trade(resource="wood", price=150, type="buy")
+        trade = market.Trade(resource="wood", price=150, requested=3, type="buy")
         market.trade_history = ((
-            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
-            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+            market.Trade(resource="wood", price=140, type="buy", requested=3, status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", requested=3, status="accepted")
         ),)
         npc = market.NPC(belief_intervals=market.BeliefIntervals(wood=interval))
         new_npc = market.update_beliefs_accepted(npc, trade)
         assert new_npc.belief_intervals.wood == shrunken  # No interval translation
 
         # Test lower bounds
-        trade = market.Trade(resource="wood", price=99, type="buy")
+        trade = market.Trade(resource="wood", price=99, requested=3, type="buy")
         new_npc = market.update_beliefs_accepted(npc, trade)
         assert new_npc.belief_intervals.wood == translated_shrunken  # Interval translation
-        trade = market.Trade(resource="wood", price=100, type="buy")
+        trade = market.Trade(resource="wood", price=100, requested=3, type="buy")
         new_npc = market.update_beliefs_accepted(npc, trade)
         assert new_npc.belief_intervals.wood == shrunken
 
         # Test upper bounds
-        trade = market.Trade(resource="wood", price=199, type="buy")
+        trade = market.Trade(resource="wood", price=199, requested=3, type="buy")
         new_npc = market.update_beliefs_accepted(npc, trade)
         assert new_npc.belief_intervals.wood == shrunken  # Interval translation
-        trade = market.Trade(resource="wood", price=200, type="buy")
+        trade = market.Trade(resource="wood", price=200, requested=3, type="buy")
         new_npc = market.update_beliefs_accepted(npc, trade)
         assert new_npc.belief_intervals.wood == translated_shrunken
 
     def test_update_beliefs_rejected(self):
         interval=(40, 60)
-        trade = market.Trade(resource="wood", price=50, type="buy")
+        trade = market.Trade(resource="wood", price=50, requested=3, type="buy")
         market.trade_history = ((
-            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
-            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+            market.Trade(resource="wood", price=140, type="buy", requested=3, status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", requested=3, status="accepted")
         ),)
         npc = market.NPC(belief_intervals=market.BeliefIntervals(wood=interval))
         new_npc = market.update_beliefs_rejected(npc, trade)
@@ -232,8 +232,8 @@ class TestTrades(object):
 
     def test_determine_trade_quantity(self):
         market.trade_history = ((
-            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
-            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+            market.Trade(resource="wood", price=140, type="buy", requested=3, status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", requested=3, status="accepted")
         ),)
 
         npc = market.NPC(
@@ -246,8 +246,8 @@ class TestTrades(object):
 
     def test_determine_sale_quantity(self):
         market.trade_history = ((
-            market.Trade(resource="wood", price=140, type="buy", status="accepted"),
-            market.Trade(resource="wood", price=160, type="buy", status="accepted")
+            market.Trade(resource="wood", price=140, type="buy", requested=3, status="accepted"),
+            market.Trade(resource="wood", price=160, type="buy", requested=3, status="accepted")
         ),)
 
         npc = market.NPC(
@@ -261,8 +261,8 @@ class TestTrades(object):
 
     def test_determine_purchase_quantity(self):
         market.trade_history = ((
-            market.Trade(resource="food", price=140, type="buy", status="accepted"),
-            market.Trade(resource="food", price=160, type="buy", status="accepted")
+            market.Trade(resource="food", price=140, type="buy", requested=3, status="accepted"),
+            market.Trade(resource="food", price=160, type="buy", requested=3, status="accepted")
         ),)
 
         npc = market.NPC(

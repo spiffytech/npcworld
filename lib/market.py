@@ -14,6 +14,10 @@ def pseudo_normal():
 def rand_from_normal():
     return Math.round(rnd_snd()*stdev+mean);
 
+
+# TODO: Subclass namedtuple to provide dict-like attr lookup, to eliminate the need for getattr()
+
+
 # Look at ways to set default values on namedtuples from http://stackoverflow.com/questions/11351032/named-tuple-and-optional-keyword-arguments
 
 Market = namedtuple("Market", ["bid", "ask"])
@@ -25,8 +29,8 @@ ResourceDelta.__new__ = partial(ResourceDelta.__new__, wood=0, food=0, ore=0, me
 
 #Bid = namedtuple("Bid", ["npc", "resource", "price"])
 #Ask = namedtuple("Ask", ["npc", "resource", "price"])
-Trade = namedtuple("Trade", ["resource", "price", "type", "status"])
-Trade.__new__ = partial(Trade.__new__, status=None)
+Trade = namedtuple("Trade", ["resource", "price", "type", "status", "requested", "delivered"])
+Trade.__new__ = partial(Trade.__new__, status="pending", delivered=None)
 
 def has_wood(obj):
     return obj.wood > 0
@@ -210,9 +214,20 @@ def calc_favorability(interval, mean):
     return min(1, max(0, mean-interval[0])/(interval[1]-interval[0]))
 
 
+def create_bid(npc, resource):
+    price = estimate_npc_price(resource, npc.belief_intervals)
+    ideal = determine_purchase_quantity(npc)
+    limit = min(5, 5-getattr(npc.inventory, resource))  # Can own no more than 5 units of a resource
+    num_to_buy = max(limit, ideal)
+    return Trade(resource=resource, price=price, requested=num_to_buy, type="buy", status="pending")
+
+
 def create_ask(npc, resource):
     price = estimate_npc_price(resource, npc.belief_intervals)
+    ideal = determine_sale_quantity(npc)
+    limit = getattr(npc.inventory, resource)
     num_to_sell = max(limit, ideal)
+    return Trade(resource=resource, price=price, requested=num_to_sell, type="sell", status="pending")
 
 
 def determine_trade_quantity(npc, resource_fn, fav_fn):
