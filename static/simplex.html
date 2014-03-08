@@ -1,0 +1,30 @@
+<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+
+<canvas id="canvas1" width="150" height="150"></canvas>
+
+<script type="text/javascript">
+function setPixel(imageData, x, y, r, g, b, a) {
+    index = (x + y * imageData.width) * 4;
+    imageData.data[index+0] = r;
+    imageData.data[index+1] = g;
+    imageData.data[index+2] = b;
+    imageData.data[index+3] = a;
+}
+
+jQuery(document).ready(function() {
+    element = document.getElementById("canvas1");
+    c = element.getContext("2d");
+
+
+    // create a new batch of pixels with the same
+    // dimensions as the image:
+    imageData = c.createImageData(element.width, element.height);
+    for(x=0;x<150;x++) {
+        for(y=0;y<150;y++) {
+            setPixel(imageData, x, y, x+y, x+y, x+y, 255);
+        }
+    }
+    c.putImageData(imageData, 0, 0);
+});
+
+</script>
