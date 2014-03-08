@@ -15,6 +15,15 @@ function setPixel(imageData, x, y, r, g, b, a) {
 function get_rgb(x) {
     if(x==-1.0000) {
         return [0, 0, 128]; // deeps
+    return [x, x, x];
+    if(x < 50) {
+        return [0, 0, 255];
+    } else if(x < 200) {
+        return [0, 255, 0];
+    } else {
+        return [x, x, x];
+    }
+
     } else if(x <= -0.2500) {
         return [0,   0, 255]; // shallow
     }
@@ -58,8 +67,9 @@ jQuery(document).ready(function() {
             for(y=0;y<max_y;y++) {
                 for(fx=0;fx<scale_factor;fx++) {
                     for(fy=0;fy<scale_factor;fy++) {
-                        rgb = get_rgb(data[x][y]);
-                        setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, rgb[0], rgb[1], rgb[2], 255);
+                        //rgb = get_rgb(data[x][y]);
+                        //setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, rgb[0], rgb[1], rgb[2], 255);
+                        setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, data[x][y][0], data[x][y][1], data[x][y][2], 255);
                     }
                 }
             }
