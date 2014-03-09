@@ -52,7 +52,7 @@ def sample_noise():
                 y=(y+offset)*smoothness
             ),
             x=(x+offset)*smoothness,
-            y=(y+offset)*smoothness,
+            y=(y+offset*2)*smoothness,
             f=f
         ) for y in xrange(max_y))
         for x in xrange(max_x)
@@ -91,59 +91,41 @@ def segmentize(x, a, b, segments):
 def colorize(elevation, x, y, f):
     terrains = {
         # (elevation,moisture)
-#        (0,1): (54, 54, 97),  # Deep water
-#        (0,2): (54, 54, 97),  # Deep water
-#        (0,3): (54, 54, 97),  # Deep water
-#        (0,4): (85, 125, 166),  # Shallow water
-#        (0,5): (85, 125, 166),  # Shallow water
-#        (0,6): (85, 125, 166),  # Shallow water
-#
-        (1,1): (189, 116, 23),  # Subtropical desert
-        (1,2): (113, 161, 59),  # Grassland
+        (0,0): (54, 54, 97),  # Deep water
+        (0,1): (54, 54, 97),  # Deep water
+        (0,2): (54, 54, 97),  # Deep water
+        (0,3): (85, 125, 166),  # Shallow water
+        (0,4): (85, 125, 166),  # Shallow water
+        (0,5): (85, 125, 166),  # Shallow water
+
+        (1,0): (189, 116, 23),  # Subtropical desert
+        (1,1): (113, 161, 59),  # Grassland
+        (1,2): (4, 38, 8),  # Tropical seasonal forest
         (1,3): (4, 38, 8),  # Tropical seasonal forest
-        (1,4): (4, 38, 8),  # Tropical seasonal forest
+        (1,4): (42, 92, 11),  # Tropical rainforest
         (1,5): (42, 92, 11),  # Tropical rainforest
-        (1,6): (42, 92, 11),  # Tropical rainforest
 
-        (2,1): (196, 171 ,40),  # Temperate desert
+        (2,0): (196, 171 ,40),  # Temperate desert
+        (2,1): (113, 161, 59),  # Grassland
         (2,2): (113, 161, 59),  # Grassland
-        (2,3): (113, 161, 59),  # Grassland
+        (2,3): (128, 143, 18),  # Temperate deciduous forest
         (2,4): (128, 143, 18),  # Temperate deciduous forest
-        (2,5): (128, 143, 18),  # Temperate deciduous forest
-        (2,6): (68, 82, 47),  # Temperate rainforest
+        (2,5): (68, 82, 47),  # Temperate rainforest
 
+        (3,0): (196, 171 ,40),  # Temperate desert
         (3,1): (196, 171 ,40),  # Temperate desert
-        (3,2): (196, 171 ,40),  # Temperate desert
+        (3,2): (221, 244, 133),  # Shrubland
         (3,3): (221, 244, 133),  # Shrubland
-        (3,4): (221, 244, 133),  # Shrubland
+        (3,4): (204, 212, 187),  # Taiga
         (3,5): (204, 212, 187),  # Taiga
-        (3,6): (204, 212, 187),  # Taiga
 
-        (4,1): (153, 153, 153),  # Scorched
-        (4,2): (187, 187, 187),  # Bare
-        (4,3): (221, 221, 187),  # Tundra
+        (4,0): (153, 153, 153),  # Scorched
+        (4,1): (187, 187, 187),  # Bare
+        (4,2): (221, 221, 187),  # Tundra
+        (4,3): (248, 248, 248),  # Snow
         (4,4): (248, 248, 248),  # Snow
         (4,5): (248, 248, 248),  # Snow
-        (4,6): (248, 248, 248),  # Snow
     }
-
-    v= simple_color(f(
-        x=x,
-        y=y
-    ), x, y, f)
-    #print v
-    #import bpdb; bpdb.set_trace()
-    #return v
-    iw = segmentize(
-        f(
-            x=x+((x**2)/180)*.01,
-            y=y+((y**2)/180)*.01
-        ), -1, 1, [10, 10, 15]
-    )
-    if iw == 0:
-        return  (54, 54, 97)  # Deep water
-    elif iw == 1:
-        return (85, 125, 166)  # Shallow water
 
     moisture = elevation
 
@@ -151,12 +133,8 @@ def colorize(elevation, x, y, f):
 
     raw_noise.append(elevation)  # Logging
 
-    #ek = segmentize(elevation, -1, 1, [30, 10, 10, 10, 10])
-    ek = segmentize(elevation, -1, 1,  [10, 20, 10, 10])+1
-    ek = segmentize(elevation, -1, 1,  [20, 10, 10, 15])+1
-    #mk = segmentize(moisture, -1, 1, [20, 5,  5,  10, 10, 10])+1
-    mk = segmentize(moisture, -1, 1,  [10, 20, 10, 10, 10, 10])+1
-    mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])+1
+    ek = segmentize(elevation, -1, 1,  [40, 20, 10, 10, 15])
+    mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])
     key = (ek, mk)
 
     if key[0] not in freqs_e:
