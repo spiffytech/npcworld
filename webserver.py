@@ -4,6 +4,7 @@ from flask import Flask, render_template, Response
 app = Flask(__name__, static_path="/static")
 
 import math
+from functools import partial
 from pprint import pprint
 import random
 import time
@@ -27,31 +28,32 @@ def sample_noise():
     freqs_k = {}
     raw_noise = []
 
-    offset = time.time()
+    offset = time.time()/10000.0
+    #offset += (offset-int(offset)) * 1000
 
-    max_x = 1200
+    max_x = 1100
     max_y = 600
-    octaves=6
-    persistence=.25
+
+    octaves=9  # Higher than 10 makes no difference
+    persistence=.5
     scale=2
-    smoothness=.003  # .003 works OK
-    f=simplex2
+    smoothness=.004  # .003 works OK
+    color_fn = colorize
+    #color_fn = simple_color
+    f = partial(simplex2, 
+        octaves=octaves,
+        persistence=persistence,  # amplitude
+        scale=scale  # frequency
+    )
     grid = tuple(
         tuple(colorize(
-            f(  # Elevation
-                octaves=octaves,
-                persistence=persistence,  # amplitude
-                scale=scale,  # frequency
-                x=x*smoothness,
-                y=y*smoothness
-            ),
-            f(  # Moisture
-                octaves=octaves,
-                persistence=persistence,  # amplitude
-                scale=scale,  # frequency
+            f(
                 x=(x+offset)*smoothness,
                 y=(y+offset)*smoothness
-            )
+            ),
+            x=(x+offset)*smoothness,
+            y=(y+offset)*smoothness,
+            f=f
         ) for y in xrange(max_y))
         for x in xrange(max_x)
     )
@@ -71,19 +73,31 @@ def sample_noise():
 
     return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
 
-def colorize(elevation, moisture):
-    #c = linear_interpolation(0, 255, elevation)
-#    return (c, c, c)
+def simple_color(val, x, y, f):
+    c = sine_interpolation(0, 255, val)
+    return (c, c, c)
 
+def segmentize(x, a, b, segments):
+    total = sum(segments)
+    increment = (b-a)/(total*1.0)  # Floating division!
+    bin_sizes = [increment * segment for segment in segments]
+    bottom = a
+    for i in xrange(len(bin_sizes)):
+        bottom += bin_sizes[i]
+        if x <= bottom:
+            return i
+    return len(segments)-1
+
+def colorize(elevation, x, y, f):
     terrains = {
         # (elevation,moisture)
-        (0,1): (85, 125, 166),  # Shallow water
-        (0,2): (85, 125, 166),  # Shallow water
-        (0,3): (85, 125, 166),  # Shallow water
-        (0,4): (54, 54, 97),  # Deep water
-        (0,5): (54, 54, 97),  # Deep water
-        (0,6): (54, 54, 97),  # Deep water
-
+#        (0,1): (54, 54, 97),  # Deep water
+#        (0,2): (54, 54, 97),  # Deep water
+#        (0,3): (54, 54, 97),  # Deep water
+#        (0,4): (85, 125, 166),  # Shallow water
+#        (0,5): (85, 125, 166),  # Shallow water
+#        (0,6): (85, 125, 166),  # Shallow water
+#
         (1,1): (189, 116, 23),  # Subtropical desert
         (1,2): (113, 161, 59),  # Grassland
         (1,3): (4, 38, 8),  # Tropical seasonal forest
@@ -113,45 +127,36 @@ def colorize(elevation, moisture):
         (4,6): (248, 248, 248),  # Snow
     }
 
-    raw_noise.append(elevation)
+    v= simple_color(f(
+        x=x,
+        y=y
+    ), x, y, f)
+    #print v
+    #import bpdb; bpdb.set_trace()
+    #return v
+    iw = segmentize(
+        f(
+            x=x+((x**2)/180)*.01,
+            y=y+((y**2)/180)*.01
+        ), -1, 1, [10, 10, 15]
+    )
+    if iw == 0:
+        return  (54, 54, 97)  # Deep water
+    elif iw == 1:
+        return (85, 125, 166)  # Shallow water
 
-    def segment(x, a, b, segments):
-        total = sum(segments)
-        increment = (b-a)/(total*1.0)  # Floating division!
-        bin_sizes = [increment * segment for segment in segments]
-        bottom = a
-        for i in xrange(len(bin_sizes)):
-            bottom += bin_sizes[i]
-            if x <= bottom:
-                return i
-        return len(segments)-1
+    moisture = elevation
 
-    ek = segment(elevation, -1, 1, [90, 30, 30, 30, 50])
-    mk = segment(moisture, -1, 1, [30, 30, 30, 30, 30, 30])+1
-    #if elevation < -.75:
-    #    ek = 0
-    #elif elevation < 0:
-    #    ek = 1
-    #elif elevation < .3:
-    #    ek = 2
-    #elif elevation < 1:
-    #    ek = 3
-    #else:
-    #    ek = 4
+    #elevation, moisture = sine_interpolation(-1, 1, elevation), sine_interpolation(-1, 1, moisture)
 
-    #if moisture < 0:
-    #    mk = 1
-    #elif moisture < .5:
-    #    mk = 2
-    #elif moisture < 1:
-    #    mk = 3
-    #elif moisture < 1.6:
-    #    mk = 4
-    #elif moisture < 1.8:
-    #    mx = 5
-    #else:
-    #    mk = 6
+    raw_noise.append(elevation)  # Logging
 
+    #ek = segmentize(elevation, -1, 1, [30, 10, 10, 10, 10])
+    ek = segmentize(elevation, -1, 1,  [10, 20, 10, 10])+1
+    ek = segmentize(elevation, -1, 1,  [20, 10, 10, 15])+1
+    #mk = segmentize(moisture, -1, 1, [20, 5,  5,  10, 10, 10])+1
+    mk = segmentize(moisture, -1, 1,  [10, 20, 10, 10, 10, 10])+1
+    mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])+1
     key = (ek, mk)
 
     if key[0] not in freqs_e:
@@ -204,6 +209,11 @@ def linear_interpolation(a, b, x):
         return ret
 
 def cosine_interpolation(a, b, x):
+    ft = x * 3.1415927
+    f = (1 - math.sin(ft)) * .5
+    return  a*(1-f) + b*f
+
+def sine_interpolation(a, b, x):
     ft = x * 3.1415927
     f = (1 - math.cos(ft)) * .5
     return  a*(1-f) + b*f
