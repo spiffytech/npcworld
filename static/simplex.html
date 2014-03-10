@@ -1,6 +1,7 @@
 <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
 
-<canvas style="float: left;" id="canvas1" width="1100" height="600"></canvas>
+<!-- <canvas style="float: left;" id="canvas1" width="1100" height="600"></canvas> -->
+<img style="float: left;" id="map">
 <div class="colors">
     <table>
         <tr>
@@ -92,6 +93,11 @@ function get_rgb(x) {
 }
 
 jQuery(document).ready(function() {
+    jQuery("#map").attr("src", "");
+    jQuery("#map").attr("src", "http://worldsim.spiffyte.ch:5000/sample_noise");
+
+
+    /*
     element = document.getElementById("canvas1");
     c = element.getContext("2d");
 
@@ -121,6 +127,7 @@ jQuery(document).ready(function() {
         c.putImageData(imageData, 0, 0);
         jQuery("#status").text("complete");
     });
+    */
 });
 
 </script>

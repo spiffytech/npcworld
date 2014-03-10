@@ -1,10 +1,12 @@
 import json
 import flask
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, redirect
 app = Flask(__name__, static_path="/static")
 
 import math
 from functools import partial
+import os.path
+from PIL import Image
 from pprint import pprint
 import random
 import time
@@ -54,8 +56,8 @@ def sample_noise():
             x=(x+offset)*smoothness,
             y=(y+offset*2)*smoothness,
             f=f
-        ) for y in xrange(max_y))
-        for x in xrange(max_x)
+        ) for x in xrange(max_x))
+        for y in xrange(max_y)
     )
             
     print "Returning noise"
@@ -71,7 +73,18 @@ def sample_noise():
     with open("static/raw_noise.log", "w+") as f:
         f.write("\n".join(str(round(x, 1)) for x in raw_noise[:1000]))
 
-    return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
+    render_to_png("terrain.png", grid)
+    return redirect("/static/terrain.png", code=302)
+    #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
+
+def render_to_png(filename, data):
+    image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
+    out = []
+    for row in data:
+        for pixel in row:
+            out.append(tuple(pixel))
+    image.putdata(out)
+    image.save(os.path.join("static", filename))  # takes type from filename extension
 
 def simple_color(val, x, y, f):
     c = sine_interpolation(0, 255, val)
