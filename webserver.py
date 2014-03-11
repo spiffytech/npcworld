@@ -13,7 +13,7 @@ import time
 
 freqs_e = {}
 freqs_m = {}
-freqs_k = {}
+freqs_t = {}
 raw_noise = []
 
 from lib import simplexnoise as sn
@@ -23,11 +23,11 @@ def sample_noise():
     print "Generating noise"
     global freqs_e
     global freqs_m
-    global freqs_k
+    global freqs_t
     global raw_noise
     freqs_e = {}
     freqs_m = {}
-    freqs_k = {}
+    freqs_t = {}
     raw_noise = []
 
     offset = time.time()/10000.0
@@ -40,7 +40,8 @@ def sample_noise():
     persistence=.5
     scale=2
     smoothness=.004  # .003 works OK
-    color_fn = colorize
+    #color_fn = colorize
+    color_fn = colorize2
     #color_fn = simple_color
     f = partial(simplex2, 
         octaves=octaves,
@@ -48,7 +49,7 @@ def sample_noise():
         scale=scale  # frequency
     )
     grid = tuple(
-        tuple(colorize(
+        tuple(color_fn(
             f(
                 x=(x+offset)*smoothness,
                 y=(y+offset)*smoothness
@@ -68,7 +69,7 @@ def sample_noise():
     print "Moisture:  ",
     pprint(freqs_m)
     print "Pairs:  ",
-    pprint(freqs_k)
+    pprint(freqs_t)
     random.shuffle(raw_noise)
     with open("static/raw_noise.log", "w+") as f:
         f.write("\n".join(str(round(x, 1)) for x in raw_noise[:1000]))
@@ -103,41 +104,65 @@ def segmentize(x, a, b, segments):
 
 def colorize(elevation, x, y, f):
     terrains = {
+        "deep_water": (54, 54, 97),  
+        "shallow_water": (85, 125, 166),  
+
+        "subtropical_desert": (189, 116, 23),  
+        "grassland": (113, 161, 59),  
+        "tropical_seasonal_forest": (4, 38, 8),  
+        "tropical_rainforest": (42, 92, 11),  
+
+        "temperate_desert": (196, 171 ,40),  
+        "grassland": (113, 161, 59),  
+        "temperate_deciduous_forest": (128, 143, 18),  
+        "temperate_rainforest": (68, 82, 47),  
+
+        "temperate_desert": (196, 171 ,40),  
+        "shrubland": (221, 244, 133),  
+        "taiga": (204, 212, 187),  
+
+        "scorched": (153, 153, 153),  
+        "bare": (187, 187, 187),  
+        "tundra": (221, 221, 187),  
+        "snow": (248, 248, 248),  
+    }
+
+    ek_map = {
         # (elevation,moisture)
-        (0,0): (54, 54, 97),  # Deep water
-        (0,1): (54, 54, 97),  # Deep water
-        (0,2): (54, 54, 97),  # Deep water
-        (0,3): (85, 125, 166),  # Shallow water
-        (0,4): (85, 125, 166),  # Shallow water
-        (0,5): (85, 125, 166),  # Shallow water
+        (0,0): "deep_water",
+        (0,1): "deep_water",
+        (0,2): "deep_water",
+        (0,3): "shallow_water",
+        (0,4): "shallow_water",
+        (0,5): "shallow_water",
 
-        (1,0): (189, 116, 23),  # Subtropical desert
-        (1,1): (113, 161, 59),  # Grassland
-        (1,2): (4, 38, 8),  # Tropical seasonal forest
-        (1,3): (4, 38, 8),  # Tropical seasonal forest
-        (1,4): (42, 92, 11),  # Tropical rainforest
-        (1,5): (42, 92, 11),  # Tropical rainforest
+        (1,0): "subtropical_desert",
+        (1,1): "grassland",
+        (1,2): "tropical_seasonal_forest",
+        (1,3): "tropical_seasonal_forest",
+        (1,4): "tropical_rainforest",
+        (1,5): "tropical_rainforest",
 
-        (2,0): (196, 171 ,40),  # Temperate desert
-        (2,1): (113, 161, 59),  # Grassland
-        (2,2): (113, 161, 59),  # Grassland
-        (2,3): (128, 143, 18),  # Temperate deciduous forest
-        (2,4): (128, 143, 18),  # Temperate deciduous forest
-        (2,5): (68, 82, 47),  # Temperate rainforest
+        (2,0): "temperate_desert",
+        (2,1): "grassland",
+        (2,2): "grassland",
+        (2,3): "temperate_deciduous_forest",
+        (2,4): "temperate_deciduous_forest",
+        (2,5): "temperate_rainforest",
 
-        (3,0): (196, 171 ,40),  # Temperate desert
-        (3,1): (196, 171 ,40),  # Temperate desert
-        (3,2): (221, 244, 133),  # Shrubland
-        (3,3): (221, 244, 133),  # Shrubland
-        (3,4): (204, 212, 187),  # Taiga
-        (3,5): (204, 212, 187),  # Taiga
+        (3,0): "temperate_desert",
+        (3,1): "temperate_desert",
+        (3,2): "shrubland",
+        (3,3): "shrubland",
+        (3,4): "taiga",
+        (3,5): "taiga",
 
-        (4,0): (153, 153, 153),  # Scorched
-        (4,1): (187, 187, 187),  # Bare
-        (4,2): (221, 221, 187),  # Tundra
-        (4,3): (248, 248, 248),  # Snow
-        (4,4): (248, 248, 248),  # Snow
-        (4,5): (248, 248, 248),  # Snow
+        (4,0): "scorched",
+        (4,1): "bare",
+        (4,2): "tundra",
+        (4,3): "snow",
+        (4,4): "snow",
+        (4,5): "snow",
     }
 
     moisture = elevation
@@ -146,7 +171,7 @@ def colorize(elevation, x, y, f):
 
     raw_noise.append(elevation)  # Logging
 
-    ek = segmentize(elevation, -1, 1,  [40, 20, 10, 10, 15])
+    ek = segmentize(elevation, -1, 1,  [40, 10, 10, 10, 15])
     mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])
     key = (ek, mk)
 
@@ -160,20 +185,61 @@ def colorize(elevation, x, y, f):
     else:
         freqs_m[key[1]] += 1
 
-    if key not in freqs_k:
-        freqs_k[key] = 1
+    terrain = ek_map[key]
+    if terrain not in freqs_t:
+        freqs_t[terrain] = 1
     else:
-        freqs_k[key] += 1
+        freqs_t[terrain] += 1
 
     try:
-        return terrains[key]
+        return terrains[terrain]
     except:
         print (
             linear_interpolation(0, 4, elevation),
             linear_interpolation(1, 6, moisture)
         )
         raise
+
+def colorize2(val, x, y, f):
+    terrains = {
+        "deep_water": (54, 54, 97),  
+        "shallow_water": (85, 125, 166),  
+
+        "subtropical_desert": (189, 116, 23),  
+        "grassland": (113, 161, 59),  
+        "tropical_seasonal_forest": (4, 38, 8),  
+        "tropical_rainforest": (42, 92, 11),  
+
+        "temperate_desert": (196, 171 ,40),  
+        "grassland": (113, 161, 59),  
+        "temperate_deciduous_forest": (128, 143, 18),  
+        "temperate_rainforest": (68, 82, 47),  
+
+        "temperate_desert": (196, 171 ,40),  
+        "shrubland": (221, 244, 133),  
+        "taiga": (204, 212, 187),  
+
+        "scorched": (153, 153, 153),  
+        "bare": (187, 187, 187),  
+        "tundra": (221, 221, 187),  
+        "snow": (248, 248, 248),  
+    }
+
+    m = {
+        0: "deep_water",
+        1: "shallow_water",
+        2: "shrubland",  # beaches
+        3: "temperate_desert",
+        4: "grassland",
+        5: "tropical_seasonal_forest",
+        6: "temperate_deciduous_forest",
+        7: "tundra",
+        8: "taiga",
+        9: "snow",
+    }
     
+    k = segmentize(val, -1, 1,  [90, 30, 10, 10, 10, 10, 10, 10, 10, 15])
+    return terrains[m[k]]
 
 def simplex1(octaves, persistence, scale, x, y):
         return sn.octave_noise_2d(
