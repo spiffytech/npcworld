@@ -41,7 +41,8 @@ def sample_noise():
     scale=2
     smoothness=.004  # .003 works OK
     #color_fn = colorize
-    color_fn = colorize2
+    #color_fn = colorize2
+    color_fn = colorize_multi
     #color_fn = simple_color
     f = partial(simplex2, 
         octaves=octaves,
@@ -129,40 +130,33 @@ def colorize(elevation, x, y, f):
 
     ek_map = {
         # (elevation,moisture)
-        (0,0): "deep_water",
-        (0,1): "deep_water",
-        (0,2): "deep_water",
-        (0,3): "shallow_water",
-        (0,4): "shallow_water",
-        (0,5): "shallow_water",
+        (0,0): "subtropical_desert",
+        (0,1): "grassland",
+        (0,2): "tropical_seasonal_forest",
+        (0,3): "tropical_seasonal_forest",
+        (0,4): "tropical_rainforest",
+        (0,5): "tropical_rainforest",
 
-        (1,0): "subtropical_desert",
+        (1,0): "temperate_desert",
         (1,1): "grassland",
-        (1,2): "tropical_seasonal_forest",
-        (1,3): "tropical_seasonal_forest",
-        (1,4): "tropical_rainforest",
-        (1,5): "tropical_rainforest",
+        (1,2): "grassland",
+        (1,3): "temperate_deciduous_forest",
+        (1,4): "temperate_deciduous_forest",
+        (1,5): "temperate_rainforest",
 
         (2,0): "temperate_desert",
-        (2,1): "grassland",
-        (2,2): "grassland",
-        (2,3): "temperate_deciduous_forest",
-        (2,4): "temperate_deciduous_forest",
-        (2,5): "temperate_rainforest",
+        (2,1): "temperate_desert",
+        (2,2): "shrubland",
+        (2,3): "shrubland",
+        (2,4): "taiga",
+        (2,5): "taiga",
 
-        (3,0): "temperate_desert",
-        (3,1): "temperate_desert",
-        (3,2): "shrubland",
-        (3,3): "shrubland",
-        (3,4): "taiga",
-        (3,5): "taiga",
-
-        (4,0): "scorched",
-        (4,1): "bare",
-        (4,2): "tundra",
-        (4,3): "snow",
-        (4,4): "snow",
-        (4,5): "snow",
+        (3,0): "scorched",
+        (3,1): "bare",
+        (3,2): "tundra",
+        (3,3): "snow",
+        (3,4): "snow",
+        (3,5): "snow",
     }
 
     moisture = elevation
@@ -171,7 +165,7 @@ def colorize(elevation, x, y, f):
 
     raw_noise.append(elevation)  # Logging
 
-    ek = segmentize(elevation, -1, 1,  [40, 10, 10, 10, 15])
+    ek = segmentize(elevation, -1, 1,  [10, 10, 10, 15])
     mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])
     key = (ek, mk)
 
@@ -240,6 +234,21 @@ def colorize2(val, x, y, f):
     
     k = segmentize(val, -1, 1,  [90, 30, 10, 10, 10, 10, 10, 10, 10, 15])
     return terrains[m[k]]
+
+def colorize_multi(val, x, y, f):
+    iw = segmentize(
+        f(
+            x=x+((x**2)/180)*.01,
+            y=y+((y**2)/180)*.01
+        ), -1, 1, [20, 10, 25]
+    )
+    if iw == 0:
+        return  (54, 54, 97)  # Deep water
+    elif iw == 1:
+        return (85, 125, 166)  # Shallow water
+
+    return colorize(val, x, y, f)
+
 
 def simplex1(octaves, persistence, scale, x, y):
         return sn.octave_noise_2d(
