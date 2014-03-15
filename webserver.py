@@ -31,7 +31,7 @@ def sample_noise():
     raw_noise = []
 
     offset = time.time()/10000.0
-    #offset += (offset-int(offset)) * 1000
+    offset += (offset-int(offset)) * 1000
 
     max_x = 1100
     max_y = 600
@@ -44,7 +44,7 @@ def sample_noise():
     #color_fn = colorize2
     color_fn = colorize_multi
     #color_fn = simple_color
-    f = partial(simplex2, 
+    f = partial(simplex3,
         octaves=octaves,
         persistence=persistence,  # amplitude
         scale=scale  # frequency
@@ -53,7 +53,8 @@ def sample_noise():
         tuple(color_fn(
             f(
                 x=(x+offset)*smoothness,
-                y=(y+offset)*smoothness
+                y=(y+offset)*smoothness,
+                z=0
             ),
             x=(x+offset)*smoothness,
             y=(y+offset*2)*smoothness,
@@ -95,10 +96,9 @@ def simple_color(val, x, y, f):
 def segmentize(x, a, b, segments):
     total = sum(segments)
     increment = (b-a)/(total*1.0)  # Floating division!
-    bin_sizes = [increment * segment for segment in segments]
     bottom = a
-    for i in xrange(len(bin_sizes)):
-        bottom += bin_sizes[i]
+    for i,v in enumerate(increment * segment for segment in segments):
+        bottom += v
         if x <= bottom:
             return i
     return len(segments)-1
@@ -159,14 +159,14 @@ def colorize(elevation, x, y, f):
         (3,5): "snow",
     }
 
-    moisture = elevation
+    moisture = f(x=x, y=y, z=2)
 
     #elevation, moisture = sine_interpolation(-1, 1, elevation), sine_interpolation(-1, 1, moisture)
 
     raw_noise.append(elevation)  # Logging
 
-    ek = segmentize(elevation, -1, 1,  [10, 10, 10, 15])
-    mk = segmentize(moisture, -1, 1,  [30, 20, 10, 10, 20, 20])
+    ek = segmentize(elevation, -1, 1,  [10, 10, 10, 10])
+    mk = segmentize(moisture, -1, 1,  [15, 20, 10, 10, 20, 10])
     key = (ek, mk)
 
     if key[0] not in freqs_e:
@@ -239,8 +239,9 @@ def colorize_multi(val, x, y, f):
     iw = segmentize(
         f(
             x=x+((x**2)/180)*.01,
-            y=y+((y**2)/180)*.01
-        ), -1, 1, [20, 10, 25]
+            y=y+((y**2)/180)*.01,
+            z=0
+        ), -1, 1, [20, 5, 25]
     )
     if iw == 0:
         return  (54, 54, 97)  # Deep water
@@ -261,6 +262,10 @@ def simplex1(octaves, persistence, scale, x, y):
 
 def simplex2(octaves, persistence, scale, x, y):
     return noise.snoise2(x, y, octaves, persistence, scale)
+    return cosine_interpolation(0, 255, noise.snoise2(x, y, octaves, persistence, scale))
+
+def simplex3(octaves, persistence, scale, x, y, z):
+    return noise.snoise3(x, y, z, octaves, persistence, scale)
     return cosine_interpolation(0, 255, noise.snoise2(x, y, octaves, persistence, scale))
 
 def linear_interpolation(a, b, x):
@@ -292,3 +297,6 @@ def smooth(x, y):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
+
+    #import cProfile
+    #cProfile.run("sample_noise()", sort="cumulative")
