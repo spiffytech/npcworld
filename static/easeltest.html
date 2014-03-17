@@ -43,6 +43,9 @@
             */
 
             preloadimages(["/static/tiles/grassland.png"]).done(function() {
+                var width = 500;
+                var height = 300;
+
                 var x = 168
                 var y = 97;
 
@@ -55,7 +58,7 @@
                     for (j = 0; j < 4; j++) {
                         var bmp = new createjs.Bitmap("/static/tiles/grassland.png");
 
-                        var this_x = (j-i) * x_center;
+                        var this_x = ((j-i) * x_center) + width/2;
                         var this_y = (i+j) * y_center;
                         bmp.x = this_x;
                         bmp.y = this_y;
@@ -68,10 +71,16 @@
 
                         stage.addChild(bmp);
 
-                        var text = new createjs.Text("[" + j + "," + j + "]", "10px Arial", "black");
+                        var text = new createjs.Text("[" + i + "," + j + "]", "10px Arial", "black");
                         text.x = this_x;
                         text.y = this_y;
                         stage.addChild(text);
+
+                        var circle = new createjs.Shape();
+                        circle.graphics.beginFill("red").drawCircle(0, 0, 5);
+                        circle.x = this_x;
+                        circle.y = this_y;
+                        stage.addChild(circle);
                     }
                 }
 
