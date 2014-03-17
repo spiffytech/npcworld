@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="http://code.createjs.com/easeljs-0.7.0.min.js"></script>
+    <script>
+        function preloadimages(arr){
+            var newimages=[], loadedimages=0
+            var postaction=function(){}
+            var arr=(typeof arr!="object")? [arr] : arr
+            function imageloadpost(){
+                loadedimages++
+                if (loadedimages==arr.length){
+                    postaction(newimages) //call postaction and pass in newimages array as parameter
+                }
+            }
+            for (var i=0; i<arr.length; i++){
+                newimages[i]=new Image()
+                newimages[i].src=arr[i]
+                newimages[i].onload=function(){
+                    imageloadpost()
+                }
+                newimages[i].onerror=function(){
+                    imageloadpost()
+                }
+            }
+            return { //return blank object with done() method
+                done:function(f){
+                    postaction=f || postaction //remember user defined callback functions to be called when images load
+                }
+            }
+        }
+
+        jQuery(document).ready(function() {
+            var stage = new createjs.Stage("demoCanvas");
+
+            /*
+            var circle = new createjs.Shape();
+            circle.graphics.beginFill("red").drawCircle(0, 0, 50);
+            circle.x = 100;
+            circle.y = 100;
+            stage.addChild(circle);
+            */
+
+            preloadimages(["/static/tiles/grassland.png"]).done(function() {
+                var x = 168
+                var y = 97;
+
+                var scale = .5;
+
+                var x_center = ((x/2) * scale);
+                var y_center = ((y/2) * scale);
+
+                for (i = 0; i < 4; i++) {
+                    for (j = 0; j < 4; j++) {
+                        var bmp = new createjs.Bitmap("/static/tiles/grassland.png");
+
+                        var this_x = (j-i) * x_center;
+                        var this_y = (i+j) * y_center;
+                        bmp.x = this_x;
+                        bmp.y = this_y;
+
+                        bmp.scaleX = scale;
+                        bmp.scaleY = scale;
+
+                        bmp.regX = x_center;
+                        bmp.regY = y_center;
+
+                        stage.addChild(bmp);
+
+                        var text = new createjs.Text("[" + j + "," + j + "]", "10px Arial", "black");
+                        text.x = this_x;
+                        text.y = this_y;
+                        stage.addChild(text);
+                    }
+                }
+
+
+                stage.update();
+            }, 1000);
+        });
+    </script>
+</head>
+<body>
+    <canvas id="demoCanvas" width="500" height="300">
+        alternate content
+    </canvas>
+</body>
+</html>
