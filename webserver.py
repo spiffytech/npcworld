@@ -165,8 +165,8 @@ def colorize(elevation, x, y, f):
 
     raw_noise.append(elevation)  # Logging
 
-    ek = segmentize(elevation, -1, 1,  [10, 10, 10, 10])
-    mk = segmentize(moisture, -1, 1,  [15, 20, 10, 10, 20, 10])
+    ek = segmentize(elevation, -1, 1,  [10, 8, 10, 10])
+    mk = segmentize(moisture, -1, 1,  [15, 20, 8, 10, 20, 10])
     key = (ek, mk)
 
     if key[0] not in freqs_e:
