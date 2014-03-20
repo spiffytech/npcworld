@@ -11,24 +11,30 @@ from pprint import pprint
 import random
 import time
 
+from dogpile.cache import make_region
+dpc = make_region().configure('dogpile.cache.memory')
+
 freqs_e = {}
 freqs_m = {}
 freqs_t = {}
-raw_noise = []
 
 from lib import simplexnoise as sn
 import noise
 @app.route("/sample_noise")
 def sample_noise():
+    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    render_to_png("terrain.png", grid)
+    return redirect("/static/terrain.png", code=302)
+    #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
+
+def make_world_grid():
     print "Generating noise"
     global freqs_e
     global freqs_m
     global freqs_t
-    global raw_noise
     freqs_e = {}
     freqs_m = {}
     freqs_t = {}
-    raw_noise = []
 
     offset = time.time()/10000.0
     offset += (offset-int(offset)) * 1000
@@ -72,13 +78,8 @@ def sample_noise():
     pprint(freqs_m)
     print "Pairs:  ",
     pprint(freqs_t)
-    random.shuffle(raw_noise)
-    with open("static/raw_noise.log", "w+") as f:
-        f.write("\n".join(str(round(x, 1)) for x in raw_noise[:1000]))
 
-    render_to_png("terrain.png", grid)
-    return redirect("/static/terrain.png", code=302)
-    #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
+    return grid
 
 def render_to_png(filename, data):
     image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
@@ -162,8 +163,6 @@ def colorize(elevation, x, y, f):
     moisture = f(x=x, y=y, z=2)
 
     #elevation, moisture = sine_interpolation(-1, 1, elevation), sine_interpolation(-1, 1, moisture)
-
-    raw_noise.append(elevation)  # Logging
 
     ek = segmentize(elevation, -1, 1,  [10, 8, 10, 10])
     mk = segmentize(moisture, -1, 1,  [15, 20, 8, 10, 20, 10])
