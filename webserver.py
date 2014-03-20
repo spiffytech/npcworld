@@ -1,6 +1,6 @@
 import json
 import flask
-from flask import Flask, render_template, Response, redirect
+from flask import Flask, render_template, Response, redirect, request
 app = Flask(__name__, static_path="/static")
 
 import math
@@ -11,6 +11,8 @@ from pprint import pprint
 import random
 import time
 
+random.seed(time.time)
+
 from dogpile.cache import make_region
 dpc = make_region().configure('dogpile.cache.memory')
 
@@ -20,10 +22,19 @@ freqs_t = {}
 
 from lib import simplexnoise as sn
 import noise
+
+@app.route("/render_viewport")
+def render_viewport():
+    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    width, height = map(int, "x".split(request.args.get("size")))
+    height = int(request.args.get("height"))
+    top_left_x, top_left_y = map(int, "x".split(request.args.get("top_left")))
+
 @app.route("/sample_noise")
 def sample_noise():
-    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    render_to_png("terrain.png", grid)
+    #grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    grid = make_world_grid()
+    render_to_png("terrain.png", colorize_minimap(grid))
     return redirect("/static/terrain.png", code=302)
     #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
 
@@ -36,8 +47,7 @@ def make_world_grid():
     freqs_m = {}
     freqs_t = {}
 
-    offset = time.time()/10000.0
-    offset += (offset-int(offset)) * 1000
+    offset = random.randint(0, 1000000)
 
     max_x = 1100
     max_y = 600
@@ -46,20 +56,16 @@ def make_world_grid():
     persistence=.5
     scale=2
     smoothness=.004  # .003 works OK
-    #color_fn = colorize
-    #color_fn = colorize2
-    color_fn = colorize_multi
-    #color_fn = simple_color
     f = partial(simplex3,
         octaves=octaves,
         persistence=persistence,  # amplitude
-        scale=scale  # frequency
+        scale=scale,  # frequency
     )
     grid = tuple(
-        tuple(color_fn(
+        tuple(make_terrain(
             f(
                 x=(x+offset)*smoothness,
-                y=(y+offset)*smoothness,
+                y=(y+offset*2)*smoothness,
                 z=0
             ),
             x=(x+offset)*smoothness,
@@ -81,30 +87,7 @@ def make_world_grid():
 
     return grid
 
-def render_to_png(filename, data):
-    image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
-    out = []
-    for row in data:
-        for pixel in row:
-            out.append(tuple(pixel))
-    image.putdata(out)
-    image.save(os.path.join("static", filename))  # takes type from filename extension
-
-def simple_color(val, x, y, f):
-    c = sine_interpolation(0, 255, val)
-    return (c, c, c)
-
-def segmentize(x, a, b, segments):
-    total = sum(segments)
-    increment = (b-a)/(total*1.0)  # Floating division!
-    bottom = a
-    for i,v in enumerate(increment * segment for segment in segments):
-        bottom += v
-        if x <= bottom:
-            return i
-    return len(segments)-1
-
-def colorize(elevation, x, y, f):
+def colorize_minimap(grid):
     terrains = {
         "deep_water": (54, 54, 97),  
         "shallow_water": (85, 125, 166),  
@@ -128,6 +111,31 @@ def colorize(elevation, x, y, f):
         "tundra": (221, 221, 187),  
         "snow": (248, 248, 248),  
     }
+
+    return tuple(tuple(terrains[cell] for cell in row) for row in grid)
+
+def segmentize(x, a, b, segments):
+    total = sum(segments)
+    increment = (b-a)/(total*1.0)  # Floating division!
+    bottom = a
+    for i,v in enumerate(increment * segment for segment in segments):
+        bottom += v
+        if x <= bottom:
+            return i
+    return len(segments)-1
+
+def make_terrain(perlin, x, y, f):
+    iw = segmentize(
+        f(
+            x=x+((x**2)/180)*.01,
+            y=y+((y**2)/180)*.01,
+            z=0
+        ), -1, 1, [20, 5, 25]
+    )
+    if iw == 0:
+        return  "deep_water"
+    elif iw == 1:
+        return "shallow_water"
 
     ek_map = {
         # (elevation,moisture)
@@ -164,8 +172,8 @@ def colorize(elevation, x, y, f):
 
     #elevation, moisture = sine_interpolation(-1, 1, elevation), sine_interpolation(-1, 1, moisture)
 
-    ek = segmentize(elevation, -1, 1,  [10, 8, 10, 10])
-    mk = segmentize(moisture, -1, 1,  [15, 20, 8, 10, 20, 10])
+    ek = segmentize(perlin, -1, 1,  [15, 8, 10, 8])
+    mk = segmentize(perlin, -1, 1,  [15, 20, 8, 10, 20, 10])
     key = (ek, mk)
 
     if key[0] not in freqs_e:
@@ -178,77 +186,14 @@ def colorize(elevation, x, y, f):
     else:
         freqs_m[key[1]] += 1
 
-    terrain = ek_map[key]
-    if terrain not in freqs_t:
-        freqs_t[terrain] = 1
-    else:
-        freqs_t[terrain] += 1
-
     try:
-        return terrains[terrain]
+        return ek_map[key]
     except:
         print (
-            linear_interpolation(0, 4, elevation),
-            linear_interpolation(1, 6, moisture)
+            linear_interpolation(0, 4, perlin),  # elevation
+            linear_interpolation(1, 6, perlin)  # moisture
         )
         raise
-
-def colorize2(val, x, y, f):
-    terrains = {
-        "deep_water": (54, 54, 97),  
-        "shallow_water": (85, 125, 166),  
-
-        "subtropical_desert": (189, 116, 23),  
-        "grassland": (113, 161, 59),  
-        "tropical_seasonal_forest": (4, 38, 8),  
-        "tropical_rainforest": (42, 92, 11),  
-
-        "temperate_desert": (196, 171 ,40),  
-        "grassland": (113, 161, 59),  
-        "temperate_deciduous_forest": (128, 143, 18),  
-        "temperate_rainforest": (68, 82, 47),  
-
-        "temperate_desert": (196, 171 ,40),  
-        "shrubland": (221, 244, 133),  
-        "taiga": (204, 212, 187),  
-
-        "scorched": (153, 153, 153),  
-        "bare": (187, 187, 187),  
-        "tundra": (221, 221, 187),  
-        "snow": (248, 248, 248),  
-    }
-
-    m = {
-        0: "deep_water",
-        1: "shallow_water",
-        2: "shrubland",  # beaches
-        3: "temperate_desert",
-        4: "grassland",
-        5: "tropical_seasonal_forest",
-        6: "temperate_deciduous_forest",
-        7: "tundra",
-        8: "taiga",
-        9: "snow",
-    }
-    
-    k = segmentize(val, -1, 1,  [90, 30, 10, 10, 10, 10, 10, 10, 10, 15])
-    return terrains[m[k]]
-
-def colorize_multi(val, x, y, f):
-    iw = segmentize(
-        f(
-            x=x+((x**2)/180)*.01,
-            y=y+((y**2)/180)*.01,
-            z=0
-        ), -1, 1, [20, 5, 25]
-    )
-    if iw == 0:
-        return  (54, 54, 97)  # Deep water
-    elif iw == 1:
-        return (85, 125, 166)  # Shallow water
-
-    return colorize(val, x, y, f)
-
 
 def simplex1(octaves, persistence, scale, x, y):
         return sn.octave_noise_2d(
@@ -293,6 +238,16 @@ def smooth(x, y):
     sides   = ( Noise(x-1, y)  +Noise(x+1, y)  +Noise(x, y-1)  +Noise(x, y+1) ) /  8
     center  =  Noise(x, y) / 4
     return corners + sides + center
+
+def render_to_png(filename, data):
+    image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
+    out = []
+    for row in data:
+        for pixel in row:
+            out.append(tuple(pixel))
+    image.putdata(out)
+    image.save(os.path.join("static", filename))  # takes type from filename extension
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
