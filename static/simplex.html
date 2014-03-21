@@ -1,7 +1,7 @@
 <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
 
 <!-- <canvas style="float: left;" id="canvas1" width="1100" height="600"></canvas> -->
-<img style="float: left;" id="map">
+<img style="float: left;" id="map" src="http://worldsim.spiffyte.ch:5000/sample_noise">
 <div class="colors">
     <table>
         <tr>
@@ -57,77 +57,6 @@ function setPixel(imageData, x, y, r, g, b, a) {
     imageData.data[index+3] = a;
 }
 
-function get_rgb(x) {
-    if(x==-1.0000) {
-        return [0, 0, 128]; // deeps
-    return [x, x, x];
-    if(x < 50) {
-        return [0, 0, 255];
-    } else if(x < 200) {
-        return [0, 255, 0];
-    } else {
-        return [x, x, x];
-    }
-
-    } else if(x <= -0.2500) {
-        return [0,   0, 255]; // shallow
-    }
-    else if(x <= 0.0000) {
-        return [ 0, 128, 255]; // shore
-    }
-    else if(x <= 0.0625) {
-        return [40, 240,  64]; // sand
-    }
-    else if(x <= 0.1250) {
-        return [32, 160,   0]; // grass
-    }
-    else if(x <= 0.3750) {
-        return [24, 224,   0]; // dirt
-    }
-    else if(x <= 0.7500) {
-        return [28, 128, 128]; // rock
-    }
-    else if(x <= 1.0000) {
-        return [55, 255, 255]; // snow
-    }
-}
-
 jQuery(document).ready(function() {
-    jQuery("#map").attr("src", "");
-    jQuery("#map").attr("src", "http://worldsim.spiffyte.ch:5000/sample_noise");
-
-
-    /*
-    element = document.getElementById("canvas1");
-    c = element.getContext("2d");
-
-    // create a new batch of pixels with the same
-    // dimensions as the image:
-    imageData = c.createImageData(element.width, element.height);
-
-    max_x=1100
-    max_y=600
-    scale_factor=1
-
-    jQuery("#status").text("calling...");
-    jQuery.get("http://worldsim.spiffyte.ch:5000/sample_noise", function(data) {
-        jQuery("#status").text("called");
-        data = data["grid"];
-        for(x=0;x<max_x;x++) {
-            for(y=0;y<max_y;y++) {
-                for(fx=0;fx<scale_factor;fx++) {
-                    for(fy=0;fy<scale_factor;fy++) {
-                        //rgb = get_rgb(data[x][y]);
-                        //setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, rgb[0], rgb[1], rgb[2], 255);
-                        setPixel(imageData, (x*scale_factor)+fx, (y*scale_factor)+fy, data[x][y][0], data[x][y][1], data[x][y][2], 255);
-                    }
-                }
-            }
-        }
-        c.putImageData(imageData, 0, 0);
-        jQuery("#status").text("complete");
-    });
-    */
 });
-
 </script>
