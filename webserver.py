@@ -26,9 +26,66 @@ import noise
 @app.route("/render_viewport")
 def render_viewport():
     grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    width, height = map(int, "x".split(request.args.get("size")))
-    height = int(request.args.get("height"))
-    top_left_x, top_left_y = map(int, "x".split(request.args.get("top_left")))
+    width, height = map(int, request.args.get("size").split("x"))
+    scale = .5  # TODO: Get this from browser
+    top_left_a, top_left_b = map(int, request.args.get("top_left").split("x"))
+    tiles = tiles_in_viewport(
+       grid= grid,
+       pos={"a": top_left_a, "b": top_left_b},
+       viewport_width=width,
+       viewport_height=height,
+       scale=scale
+    )
+
+    return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
+
+def viewport_size_in_tiles(width, height, scale):
+    TILE_WIDTH = 168
+    TILE_HEIGHT = 97
+    print "viewport size:", (width, height, scale)
+    pprint((
+        int(math.ceil(width / (TILE_WIDTH * scale)))*2,
+        int(math.ceil(height / (TILE_HEIGHT * scale)))*2
+    ))
+    return (
+        int(math.ceil(width / (TILE_WIDTH * scale)))*2,
+        int(math.ceil(height / (TILE_HEIGHT * scale)))*2
+    )
+
+def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
+    width, height = viewport_size_in_tiles(viewport_width, viewport_height, scale)
+
+    viewport_a = pos["a"]
+    viewport_b = pos["b"]
+
+    print "pos =", pos
+    print "viewport_a =", (viewport_a, viewport_a + width)
+    print "viewport_b =", (viewport_b, viewport_b + height)
+    print "width =", width
+    print "height =", height
+
+    ret = []
+    for a in range(viewport_a, viewport_a + width):
+        ret.append([])
+        for b in range(viewport_b, viewport_b + height):
+            if (a&1) != (b&1):  # Prevent duplicate x/y pairs?
+                continue
+            print ((a, b), ((a+b/2), (a-b/2)))
+            ret[-1].append(grid[(a+b)/2][(a-b)/2])
+
+#    pprint(ret)
+    for row in ret:
+        for column in row:
+            print "x",
+        print "\n"
+    return ret
+    ret = tuple(
+        tuple(grid[(a+b)/2][(a-b)/2] for b in range(viewport_b, viewport_b + height) if (a&1) == (b&1))
+        for a in range(viewport_a, viewport_a + width)
+    )
+    pprint(ret)
+    return ret
+
 
 @app.route("/sample_noise")
 def sample_noise():

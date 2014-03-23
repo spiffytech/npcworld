@@ -42,56 +42,60 @@
             stage.addChild(circle);
             */
 
-            preloadimages(["/static/tiles/grassland.png"]).done(function() {
+            preloadimages(["/static/tiles/grassland.png", "/static/tiles/shrubland.png", "/static/tiles/shallow_water.png", "/static/tiles/deep_water.png", "/static/tiles/temperate_desert.png", ]).done(function() {
                 var width = 500;
                 var height = 300;
 
                 var x = 168
                 var y = 97;
 
-                var scale = .5;
+                jQuery.get("/render_viewport", {size: width + "x" + height, top_left: 100 + "x" + 100}, function(data) {
+                    data = data["tiles"];
+                    var scale = .5;
 
-                var x_center = ((x/2) * scale);
-                var y_center = ((y/2) * scale);
+                    var x_center = ((x/2) * scale);
+                    var y_center = ((y/2) * scale);
 
-                for (i = 0; i < 40; i++) {
-                    for (j = 0; j < 40; j++) {
-                        var bmp = new createjs.Bitmap("/static/tiles/grassland.png");
+                    for(var row in data) {
+                        row = parseInt(row);
+                        for(var column in data[row]) {
+                            column = parseInt(column);
+                            var bmp = new createjs.Bitmap("/static/tiles/" + data[row][column] + ".png");
 
-                        var this_x = ((j-i) * x_center) + width/2;
-                        var this_y = (i+j) * y_center;
-                        bmp.x = this_x;
-                        bmp.y = this_y;
+                            var this_x = ((column - row) * x_center) + width/2;
+                            var this_y = (row + column) * y_center;
+                            bmp.x = this_x;
+                            bmp.y = this_y;
 
-                        bmp.scaleX = scale;
-                        bmp.scaleY = scale;
+                            bmp.scaleX = scale;
+                            bmp.scaleY = scale;
 
-                        bmp.regX = x/2;
-                        bmp.regY = y/2;  // Delete this to set the control point to the top corner of each cell
+                            bmp.regX = x/2;
+                            bmp.regY = y/2;  // Delete this to set the control point to the top corner of each cell
 
-                        stage.addChild(bmp);
+                            stage.addChild(bmp);
 
-                        var text = new createjs.Text("[" + i + "," + j + "]", "10px Arial", "black");
-                        text.x = this_x;
-                        text.y = this_y;
-                        stage.addChild(text);
+                            var text = new createjs.Text("[" + row + "," + column + "]", "10px Arial", "black");
+                            text.x = this_x;
+                            text.y = this_y;
+                            stage.addChild(text);
 
-                        var circle = new createjs.Shape();
-                        circle.graphics.beginFill("red").drawCircle(0, 0, 5);
-                        circle.x = this_x;
-                        circle.y = this_y;
-                        stage.addChild(circle);
+                            var circle = new createjs.Shape();
+                            circle.graphics.beginFill("red").drawCircle(0, 0, 5);
+                            circle.x = this_x;
+                            circle.y = this_y;
+                            stage.addChild(circle);
+                        }
                     }
-                }
 
-
-                stage.update();
+                    stage.update();
+                });
             }, 1000);
         });
     </script>
 </head>
 <body>
-    <canvas id="demoCanvas" width="500" height="300">
+    <canvas id="demoCanvas" width="500" height="300" style="border: 2px solid black;">
         alternate content
     </canvas>
 </body>
