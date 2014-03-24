@@ -1,4 +1,4 @@
-import json
+import simplejson as json
 import flask
 from flask import Flask, render_template, Response, redirect, request
 app = Flask(__name__, static_path="/static")
@@ -22,6 +22,9 @@ freqs_t = {}
 
 from lib import simplexnoise as sn
 import noise
+
+from collections import namedtuple
+Cell = namedtuple("Cell", "type_ x y")
 
 @app.route("/render_viewport")
 def render_viewport():
@@ -68,10 +71,13 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
     for a in range(viewport_a, viewport_a + width):
         ret.append([])
         for b in range(viewport_b, viewport_b + height):
-            if (a&1) != (b&1):  # Prevent duplicate x/y pairs?
+            if (a&1) != (b&1):  # Both even / both odd. Prevent duplicate x/y pairs?
                 continue
-            print ((a, b), ((a+b/2), (a-b/2)))
-            ret[-1].append(grid[(a+b)/2][(a-b)/2])
+            x = (a+b)/2
+            y = (a-b)/2
+            assert y >= 0
+            print ((a, b), (x, y))
+            ret[-1].append(Cell(x=x, y=y, type_=grid[x][y]))
 
 #    pprint(ret)
     for row in ret:
@@ -89,8 +95,8 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
 
 @app.route("/sample_noise")
 def sample_noise():
-    #grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    grid = make_world_grid()
+    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    #grid = make_world_grid()
     render_to_png("terrain.png", colorize_minimap(grid))
     return redirect("/static/terrain.png", code=302)
     #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")

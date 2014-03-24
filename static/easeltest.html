@@ -49,7 +49,7 @@
                 var x = 168
                 var y = 97;
 
-                jQuery.get("/render_viewport", {size: width + "x" + height, top_left: 100 + "x" + 100}, function(data) {
+                jQuery.get("/render_viewport", {size: width + "x" + height, top_left: 100 + "x" + 50}, function(data) {
                     data = data["tiles"];
                     var scale = .5;
 
@@ -58,9 +58,9 @@
 
                     for(var row in data) {
                         row = parseInt(row);
-                        for(var column in data[row]) {
+                        for(var column = data[row].length-1; column >= 0; column--) {  // Rendering in reverse order ensures tiles layer in the right order
                             column = parseInt(column);
-                            var bmp = new createjs.Bitmap("/static/tiles/" + data[row][column] + ".png");
+                            var bmp = new createjs.Bitmap("/static/tiles/" + data[row][column]["type_"] + ".png");
 
                             var this_x = ((column - row) * x_center) + width/2;
                             var this_y = (row + column) * y_center;
@@ -75,7 +75,7 @@
 
                             stage.addChild(bmp);
 
-                            var text = new createjs.Text("[" + row + "," + column + "]", "10px Arial", "black");
+                            var text = new createjs.Text("[" + data[row][column]["x"] + "," + data[row][column]["y"] + "]", "10px Arial", "black");
                             text.x = this_x;
                             text.y = this_y;
                             stage.addChild(text);
@@ -98,5 +98,6 @@
     <canvas id="demoCanvas" width="500" height="300" style="border: 2px solid black;">
         alternate content
     </canvas>
+    <img style="float: left; -webkit-transform: rotate(45deg); margin-top: 350px;" id="map" src="http://worldsim.spiffyte.ch:5000/sample_noise">
 </body>
 </html>
