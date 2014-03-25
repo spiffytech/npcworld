@@ -72,11 +72,12 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
         ret.append([])
         for b in range(viewport_b, viewport_b + height):
             if (a&1) != (b&1):  # Both even / both odd. Prevent duplicate x/y pairs?
+                print "Skipping ", ((a, b), (x, y))
                 continue
             x = (a+b)/2
             y = (a-b)/2
             assert y >= 0
-            print ((a, b), (x, y))
+            print "Printing ", ((a, b), (x, y))
             ret[-1].append(Cell(x=x, y=y, type_=grid[x][y]))
 
 #    pprint(ret)
@@ -84,7 +85,39 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
         for column in row:
             print "x",
         print "\n"
+
+    all_ = tuple(cell for row in ret for cell in row)
+
+    # Assert no duplicate x or y values
+    bins = []
+    for x in set(r.x for r in all_):
+        bins.append(sorted(tuple(r.y for r in all_ if r.x == x)))
+    for bin_ in bins:
+        try:
+            assert bin_ == range(bin_[0], bin_[-1]+1)
+        except AssertionError:
+            print bin_
+            print range(bin_[0], bin_[-1]+1)
+            raise
+    pprint(bins)
+
+    bins = []
+    for y in set(r.y for r in all_):
+        bins.append(sorted(tuple(r.x for r in all_ if r.y == y)))
+    for bin_ in bins:
+        try:
+            assert bin_ == range(bin_[0], bin_[-1]+1)
+        except AssertionError:
+            print bin_
+            print range(bin_[0], bin_[-1]+1)
+            raise
+    pprint(bins)
+
     return ret
+
+
+
+
     ret = tuple(
         tuple(grid[(a+b)/2][(a-b)/2] for b in range(viewport_b, viewport_b + height) if (a&1) == (b&1))
         for a in range(viewport_a, viewport_a + width)
