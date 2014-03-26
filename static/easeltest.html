@@ -94,8 +94,9 @@
                             column = parseInt(column);
                             var bmp = new createjs.Bitmap("/static/tiles/" + data[row][column]["type_"] + ".png");
 
-                            var this_x = ((column - row) * x_center) + width/2;
-                            var this_y = (row + column) * y_center;
+                            var this_x = column * x*scale + (x * scale * .5 * (row % 2));
+                            var this_y = row * y*scale*.5;
+
                             bmp.x = this_x;
                             bmp.y = this_y;
 
