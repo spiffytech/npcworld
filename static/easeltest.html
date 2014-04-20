@@ -108,6 +108,10 @@
 
                             stage.addChild(bmp);
 
+                            var text = new createjs.Text(data[row][column]["type_"], "10px Arial", "black");
+                            text.x = this_x-15;
+                            text.y = this_y-15;
+                            stage.addChild(text);
                             var text = new createjs.Text("[" + data[row][column]["x"] + "," + data[row][column]["y"] + "]", "10px Arial", "black");
                             text.x = this_x;
                             text.y = this_y;

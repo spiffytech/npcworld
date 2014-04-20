@@ -72,19 +72,11 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
         ret.append([])
         for b in range(viewport_b, viewport_b + height):
             if (a&1) != (b&1):  # Both even / both odd. Prevent duplicate x/y pairs?
-                print "Skipping ", ((a, b), (x, y))
                 continue
             x = (a+b)/2
             y = (a-b)/2
             assert y >= 0
-            print "Printing ", ((a, b), (x, y))
             ret[-1].append(Cell(x=x, y=y, type_=grid[x][y]))
-
-#    pprint(ret)
-    for row in ret:
-        for column in row:
-            print "x",
-        print "\n"
 
     all_ = tuple(cell for row in ret for cell in row)
 
@@ -99,7 +91,6 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
             print bin_
             print range(bin_[0], bin_[-1]+1)
             raise
-    pprint(bins)
 
     bins = []
     for y in set(r.y for r in all_):
@@ -111,11 +102,8 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
             print bin_
             print range(bin_[0], bin_[-1]+1)
             raise
-    pprint(bins)
 
     return ret
-
-
 
 
     ret = tuple(
