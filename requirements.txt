@@ -7,4 +7,5 @@ gunicorn
 gevent
 pyramid<1.5
 bpython
-bpdb
+pyzmq
+pyzmqrpc
