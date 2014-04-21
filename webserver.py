@@ -66,9 +66,12 @@ def movement_stream():
     print "Making graph..."
     graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
     print "Graph made"
+    # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
+    # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
     def cf(u, v, e, prev_e):
         cell_type = grid[v[0]][v[1]]
         return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
+
     dots = [
         {
             "dot_id": 1,
@@ -90,9 +93,8 @@ def movement_stream():
     ]
     #import pdb; pdb.set_trace()
     for dot in dots:
-        yield build_sse_message(event_type="new_dot", event_id=dot["dot_id"], data=json.dumps(dot))
+        yield build_sse_message(event_type="new_dot", event_id=time.time(), data=json.dumps(dot))
 
-    import time
     time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary.
     while True:
         for dot in dots:
@@ -219,11 +221,8 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
 @app.route("/sample_noise")
 def sample_noise():
     grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    #grid = make_world_grid()
-    print len(grid), len(grid[0])
-    render_to_png("terrain.png", colorize_minimap(grid))
+    dpc.get_or_create("render_minimap", lambda: render_to_png("terrain.png", colorize_minimap(grid)), 60*60)
     return redirect("/static/terrain.png", code=302)
-    #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
 
 @app.route("/cell_type")
 def query_cell_type():
