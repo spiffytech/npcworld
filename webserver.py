@@ -67,7 +67,8 @@ def movement_stream():
     graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
     print "Graph made"
     def cf(u, v, e, prev_e):
-        return e["cost"]
+        cell_type = grid[v[0]][v[1]]
+        return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
     dots = [
         {
             "dot_id": 1,
@@ -124,7 +125,6 @@ def make_graph(grid):
                 graph.add_edge(
                     (x, y),
                     (neighbor["x"], neighbor["y"]),
-                    {"cost": sys.maxint if grid[neighbor["x"]][neighbor["y"]] in ["shallow_water", "deep_water"] else 1}
                 )
 
     return graph
