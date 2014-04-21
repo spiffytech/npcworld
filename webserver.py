@@ -101,7 +101,8 @@ def movement_stream():
                     x = dot["path"][0][0],
                     y = dot["path"][0][1],
                 )
-                print dot["dot_id"], dot["path"][0], dot["costs"][0], grid[payload["x"]][payload["y"]]
+                if dot["dot_id"] == 2:
+                    print dot["dot_id"], dot["path"][0], dot["costs"][0], grid[payload["x"]][payload["y"]]
                 if len(dot["path"]) > 1:
                     dot["path"] = dot["path"][1:]
                 else:
@@ -219,6 +220,7 @@ def tiles_in_viewport(grid, pos, viewport_width, viewport_height, scale):
 def sample_noise():
     grid = dpc.get_or_create("grid", make_world_grid, 60*60)
     #grid = make_world_grid()
+    print len(grid), len(grid[0])
     render_to_png("terrain.png", colorize_minimap(grid))
     return redirect("/static/terrain.png", code=302)
     #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
@@ -440,20 +442,22 @@ def smooth(x, y):
 def render_to_png(filename, data):
     print "\n\n\n\n\n\n\n\n\nhere\n\n\n\n\n\n\n\n\n"
     image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
+    print len(data), len(data[0])
+    image = Image.new('RGB', (len(data), len(data[0])))  # type, size
     # TODO: tuples
     out = []
-    ##rotated = []
-    #for col in range(len(data[0])):
-    ##    rotated.append([])
-    #    for row in range(len(data)):
-    #        cell = data[row][col]
-    ##        rotated[col].append(tuple(cell))
-    #        out.append(tuple(cell))
+    #rotated = []
+    for col in range(len(data[0])):
+    #    rotated.append([])
+        for row in range(len(data)):
+            cell = data[row][col]
+    #        rotated[col].append(tuple(cell))
+            out.append(tuple(cell))
     ##import pdb; pdb.set_trace()
-    ##data = rotated
-    for row in data:
-        for pixel in row:
-            out.append(tuple(pixel))
+    #data = rotated
+    #for row in data:
+    #    for pixel in row:
+    #        out.append(tuple(pixel))
     image.putdata(out)
     image.save(os.path.join("static", filename))  # takes type from filename extension
 

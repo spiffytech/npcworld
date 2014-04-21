@@ -96,6 +96,9 @@
             dots[data.dot_id].x = data.x
             dots[data.dot_id].y = data.y
             stage.update();
+            if(data.dot_id == 2) {
+                jQuery("#dot_path").text(JSON.stringify(data.path));
+            }
         }
 
         function move_dot(data) {
@@ -143,5 +146,6 @@
         alternate content
     </canvas>
     <img style="float: left;" id="map" src="/sample_noise">
+    <div id="dot_path"></div>
 </body>
 </html>
