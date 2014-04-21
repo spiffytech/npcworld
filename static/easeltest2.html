@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <!--<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>-->
+    <script src="/static/jquery-1.10.2.min.js"></script>
     <script src="http://code.createjs.com/easeljs-0.7.0.min.js"></script>
     <script>
         function preloadimages(arr){
@@ -43,20 +44,28 @@
         function prepare_sse() {
             var eventsource = new EventSource("/movement");
             eventsource.addEventListener("new_dot", function(e) {
-                add_dot(e.data);
+                add_dot(JSON.parse(e.data));
             });
             eventsource.addEventListener("movement", function(e) {
-                move_dot(e.data);
+                move_dot(JSON.parse(e.data));
             });
         }
 
         function add_dot(data) {
-            
+            var p = new createjs.Shape()
+            if(typeof(dots[data.dot_id]) != "undefined") {
+                return;
+            }
+            p.graphics.beginFill(data.color).drawRect(data.x, data.y, 1, 1);
+            dots[data.dot_id] = p;
+            stage.addChild(p);
+            stage.update();
         }
 
         function move_dot(data) {
-            dots["a"].x = data;
-            dots["a"].y = data;
+            var dot = data.dot_id;
+            dots[dot].x = data.x;
+            dots[dot].y = data.y;
             stage.update();
         }
 
@@ -79,11 +88,6 @@
                 var bmp = new createjs.Bitmap("/sample_noise");
 
                 stage.addChild(bmp);
-
-                var p = new createjs.Shape()
-                p.graphics.beginFill("red").drawRect(10, 10, 1, 1);
-                dots["a"] = p;
-                stage.addChild(p);
 
                 stage.update();
             });

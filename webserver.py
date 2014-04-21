@@ -42,6 +42,15 @@ def render_viewport():
 
     return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
 
+def event(e):
+    if not hasattr(event, "events"):
+        event.events = []
+    event.events.append(e)
+    def func(f):
+        return f
+    return func
+
+
 def movement_stream():
     def build_sse_message(event_type, event_id, data):
         msg = "id: %s\nevent: %s\n" % (event_id, event_type)
@@ -50,9 +59,32 @@ def movement_stream():
         msg += "\n"
         return str(msg)
 
+    dots = [
+        {
+            "dot_id": 1,
+            "color": "red",
+            "x": 10,
+            "y": 10,
+        }, {
+            "dot_id": 2,
+            "color": "blue",
+            "x": 20,
+            "y": 20,
+        }
+    ]
+    for dot in dots:
+        yield build_sse_message(event_type="new_dot", event_id=dot["dot_id"], data=json.dumps(dot))
+
     import time
+    time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary.
     for i in range(50):
-        yield build_sse_message(event_type="movement", event_id=i, data=str(i))
+        for dot in dots:
+            payload = dict(
+                dot_id = dot["dot_id"],
+                x = dot["x"] + i,
+                y = dot["y"] + i
+            )
+            yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
         time.sleep(.1)
 
 @app.route("/movement")
