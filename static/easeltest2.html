@@ -40,6 +40,36 @@
             stage.scaleY = 4;
             draw_stage();
             prepare_sse();
+
+            jQuery(document).keydown(function(e) {
+                switch(e.which) {
+                    case 37: // left
+                    if(cursor.x != 0) {
+                        cursor.x -= 1;
+                    }
+                    break;
+
+                    case 38: // up
+                    if(cursor.y != 0) {
+                        cursor.y -= 1;
+                    }
+                    break;
+
+                    case 39: // right
+                    cursor.x += 1;
+                    break;
+
+                    case 40: // down
+                    cursor.y += 1;
+                    break;
+
+                    default: return; // exit this handler for other keys
+                }
+                e.preventDefault(); // prevent the default action (scroll / move caret)
+
+                stage.update();
+                jQuery("#coords").html("(" + cursor.x + "," + cursor.y + ")");
+            });
         });
 
         function prepare_sse() {
@@ -53,15 +83,15 @@
         }
 
         function add_dot(data) {
-            var p = new createjs.Shape()
+            var p = new createjs.Shape();
             if(typeof(dots[data.dot_id]) != "undefined") {
                 return;
             }
             p.graphics.beginFill(data.color).drawRect(0, 0, 1, 1);
             dots[data.dot_id] = p;
             stage.addChild(p);
-            dots[data.dot].x = data.x
-            dots[data.dot].y = data.y
+            dots[data.dot_id].x = data.x
+            dots[data.dot_id].y = data.y
             stage.update();
         }
 
@@ -89,8 +119,14 @@
                 var y = 97;
 
                 var bmp = new createjs.Bitmap("/sample_noise");
+                bmp.addEventListener("click", function(event) {
+                });
 
                 stage.addChild(bmp);
+
+                cursor = new createjs.Shape();
+                cursor.graphics.beginFill("purple").drawRect(0, 0, 1, 1);
+                stage.addChild(cursor);
 
                 stage.update();
             });
@@ -98,6 +134,7 @@
     </script>
 </head>
 <body>
+    <p id="coords">(0,0)</p>
     <canvas id="demoCanvas" width="900" height="900" style="border: 2px solid black;">
         alternate content
     </canvas>

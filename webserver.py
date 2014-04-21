@@ -66,6 +66,8 @@ def movement_stream():
     print "Making graph..."
     graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
     print "Graph made"
+    def cf(u, v, e, prev_e):
+        return e["cost"]
     dots = [
         {
             "dot_id": 1,
@@ -73,16 +75,19 @@ def movement_stream():
             "x": 10,
             "y": 10,
             "dest": (29, 1),
-            "path": find_path(graph, (10, 10), (59, 1), cost_func=lambda u, v, e, prev_e: e["cost"])[0]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            "path": find_path(graph, (10, 10), (159, 1), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            "costs": find_path(graph, (10, 10), (159, 1), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
         }, {
             "dot_id": 2,
             "color": "blue",
             "x": 20,
             "y": 20,
             "dest": (30, 1),
-            "path": find_path(graph, (20, 20), (60, 1), cost_func=lambda u, v, e, prev_e: e["cost"])[0]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            "path": find_path(graph, (20, 20), (139, 100), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            "costs": find_path(graph, (20, 20), (139, 100), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
         }
     ]
+    #import pdb; pdb.set_trace()
     for dot in dots:
         yield build_sse_message(event_type="new_dot", event_id=dot["dot_id"], data=json.dumps(dot))
 
@@ -96,9 +101,14 @@ def movement_stream():
                     x = dot["path"][0][0],
                     y = dot["path"][0][1],
                 )
-                print dot["dot_id"], dot["path"][0]
+                print dot["dot_id"], dot["path"][0], dot["costs"][0], grid[payload["x"]][payload["y"]]
                 if len(dot["path"]) > 1:
                     dot["path"] = dot["path"][1:]
+                else:
+                    dot["path"] = []
+
+                if len(dot["costs"]) > 1:
+                    dot["costs"] = dot["costs"][1:]
                 else:
                     dot["path"] = []
                 yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
@@ -287,7 +297,15 @@ def colorize_minimap(grid):
         "snow": (248, 248, 248),  
     }
 
-    return tuple(tuple(terrains[cell] for cell in row) for row in grid)
+    # TODO: Tuples instead of lists
+    colors = []
+    for i, row in enumerate(grid):
+        colors.append([])
+        for cell in row:
+            colors[i].append(terrains[cell])
+
+    return colors
+    return tuple(tuple(terrains[cell] for cell in row) for row in grid)  # Seems to get rows and columns confused
 
 def segmentize(x, a, b, segments):
     total = sum(segments)
