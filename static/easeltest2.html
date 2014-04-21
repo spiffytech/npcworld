@@ -2,8 +2,8 @@
 <html>
 <head>
     <!--<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>-->
-    <script src="/static/jquery-1.10.2.min.js"></script>
     <!--<script src="http://code.createjs.com/easeljs-0.7.1.min.js"></script>-->
+    <script src="/static/jquery-1.10.2.min.js"></script>
     <script src="/static/easeljs-0.7.1.min.js"></script>
     <script>
         function preloadimages(arr){
@@ -102,10 +102,16 @@
         }
 
         function move_dot(data) {
-            var dot = data.dot_id;
-            dots[dot].x = data.x;
-            dots[dot].y = data.y;
+            // TODO: Use world update event system here instead of in-place variable updates. FUNCTIONAL PROGRAMMING! \o/
+            var new_loc = data.path[0];
+            dots[data.dot_id].x = new_loc[0];
+            dots[data.dot_id].y = new_loc[1];
             stage.update();
+
+            if(data.path.length > 0) {
+                data.path = data.path.slice(1);  // pop
+                setTimeout(function(){ move_dot(data) }, data.speed * 1000);
+            }
         }
 
         function draw_stage() {

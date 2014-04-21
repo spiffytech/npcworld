@@ -101,22 +101,11 @@ def movement_stream():
             if len(dot["path"]) > 0:
                 payload = dict(
                     dot_id = dot["dot_id"],
-                    x = dot["path"][0][0],
-                    y = dot["path"][0][1],
+                    path = dot["path"],
+                    speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
                 )
-                if dot["dot_id"] == 2:
-                    print dot["dot_id"], dot["path"][0], dot["costs"][0], grid[payload["x"]][payload["y"]]
-                if len(dot["path"]) > 1:
-                    dot["path"] = dot["path"][1:]
-                else:
-                    dot["path"] = []
-
-                if len(dot["costs"]) > 1:
-                    dot["costs"] = dot["costs"][1:]
-                else:
-                    dot["path"] = []
                 yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
-        time.sleep(.1)
+        time.sleep(10000000)
 
 def make_graph(grid):
     graph = Graph()
