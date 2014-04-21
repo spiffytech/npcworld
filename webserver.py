@@ -42,6 +42,23 @@ def render_viewport():
 
     return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
 
+def movement_stream():
+    def build_sse_message(event_type, event_id, data):
+        msg = "id: %s\nevent: %s\n" % (event_id, event_type)
+        for line in data.strip().split("\n"):
+            msg += "data: %s\n" % line
+        msg += "\n"
+        return str(msg)
+
+    import time
+    for i in range(50):
+        yield build_sse_message(event_type="movement", event_id=i, data=str(i))
+        time.sleep(.1)
+
+@app.route("/movement")
+def movement():
+    return Response(movement_stream(), mimetype="text/event-stream");
+
 def viewport_size_in_tiles(width, height, scale):
     TILE_WIDTH = 168
     TILE_HEIGHT = 97

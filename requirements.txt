@@ -2,3 +2,7 @@ pillow
 noise
 flask
 simplejson
+dogpile.cache
+gunicorn
+gevent
+pyramid<1.5

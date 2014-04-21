@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="http://code.createjs.com/easeljs-0.7.0.min.js"></script>
+    <script>
+        function preloadimages(arr){
+            var newimages=[], loadedimages=0
+            var postaction=function(){}
+            var arr=(typeof arr!="object")? [arr] : arr
+            function imageloadpost(){
+                loadedimages++
+                if (loadedimages==arr.length){
+                    postaction(newimages) //call postaction and pass in newimages array as parameter
+                }
+            }
+            for (var i=0; i<arr.length; i++){
+                newimages[i]=new Image()
+                newimages[i].src=arr[i]
+                newimages[i].onload=function(){
+                    imageloadpost()
+                }
+                newimages[i].onerror=function(){
+                    imageloadpost()
+                }
+            }
+            return { //return blank object with done() method
+                done:function(f){
+                    postaction=f || postaction //remember user defined callback functions to be called when images load
+                }
+            }
+        }
+
+        jQuery(document).ready(function() {
+            dots = {};
+            stage = new createjs.Stage("demoCanvas");
+            stage.scaleX = 4;
+            stage.scaleY = 4;
+            draw_stage();
+            prepare_sse();
+        });
+
+        function prepare_sse() {
+            var eventsource = new EventSource("/movement");
+            eventsource.addEventListener("new_dot", function(e) {
+                add_dot(e.data);
+            });
+            eventsource.addEventListener("movement", function(e) {
+                move_dot(e.data);
+            });
+        }
+
+        function add_dot(data) {
+            
+        }
+
+        function move_dot(data) {
+            dots["a"].x = data;
+            dots["a"].y = data;
+            stage.update();
+        }
+
+        function draw_stage() {
+            /*
+            var circle = new createjs.Shape();
+            circle.graphics.beginFill("red").drawCircle(0, 0, 50);
+            circle.x = 100;
+            circle.y = 100;
+            stage.addChild(circle);
+            */
+
+            preloadimages(["/sample_noise"]).done(function() {
+                var width = 500;
+                var height = 300;
+
+                var x = 168
+                var y = 97;
+
+                var bmp = new createjs.Bitmap("/sample_noise");
+
+                stage.addChild(bmp);
+
+                var p = new createjs.Shape()
+                p.graphics.beginFill("red").drawRect(10, 10, 1, 1);
+                dots["a"] = p;
+                stage.addChild(p);
+
+                stage.update();
+            });
+        }
+    </script>
+</head>
+<body>
+    <canvas id="demoCanvas" width="500" height="600" style="border: 2px solid black;">
+        alternate content
+    </canvas>
+    <img style="float: left;" id="map" src="/sample_noise">
+</body>
+</html>
