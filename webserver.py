@@ -124,18 +124,18 @@ def make_graph(grid):
                 graph.add_edge(
                     (x, y),
                     (neighbor["x"], neighbor["y"]),
-                    {"cost": sys.maxint if cell in ["shallow_water", "deep_water"] else 1}
+                    {"cost": sys.maxint if grid[neighbor["x"]][neighbor["y"]] in ["shallow_water", "deep_water"] else 1}
                 )
 
     return graph
 
 def get_neighbors(grid, x, y):
-    row_len = len(grid[x])
-    col_len = len(grid)
+    max_x = len(grid)  # x
+    max_y = len(grid[0])  # y
     neighbors = []
     for i in (-1, 0, 1):
         for j in (-1, 0, 1):
-            if 0 <= x + i < row_len and 0 <= y + j < col_len:  # Allow referencing self, to ensure we can route to self if desired
+            if 0 <= x + i < max_x and 0 <= y + j < max_y:  # Allow referencing self, to ensure we can route to self if desired
                 neighbors.append(dict(x=x+i, y=y+j))
 
     return neighbors
@@ -263,9 +263,10 @@ def make_world_grid():
             x=(x+offset)*smoothness,
             y=(y+offset*2)*smoothness,
             f=f
-        ) for x in xrange(max_x))
-        for y in xrange(max_y)
+        ) for y in xrange(max_y))
+        for x in xrange(max_x)
     )
+    print len(grid), len(grid[0])
             
     print "Returning noise"
 
@@ -440,24 +441,13 @@ def smooth(x, y):
     return corners + sides + center
 
 def render_to_png(filename, data):
-    print "\n\n\n\n\n\n\n\n\nhere\n\n\n\n\n\n\n\n\n"
-    image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
-    print len(data), len(data[0])
     image = Image.new('RGB', (len(data), len(data[0])))  # type, size
     # TODO: tuples
     out = []
-    #rotated = []
     for col in range(len(data[0])):
-    #    rotated.append([])
         for row in range(len(data)):
             cell = data[row][col]
-    #        rotated[col].append(tuple(cell))
             out.append(tuple(cell))
-    ##import pdb; pdb.set_trace()
-    #data = rotated
-    #for row in data:
-    #    for pixel in row:
-    #        out.append(tuple(pixel))
     image.putdata(out)
     image.save(os.path.join("static", filename))  # takes type from filename extension
 
