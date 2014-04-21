@@ -3,7 +3,8 @@
 <head>
     <!--<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>-->
     <script src="/static/jquery-1.10.2.min.js"></script>
-    <script src="http://code.createjs.com/easeljs-0.7.0.min.js"></script>
+    <!--<script src="http://code.createjs.com/easeljs-0.7.1.min.js"></script>-->
+    <script src="/static/easeljs-0.7.1.min.js"></script>
     <script>
         function preloadimages(arr){
             var newimages=[], loadedimages=0
@@ -56,9 +57,11 @@
             if(typeof(dots[data.dot_id]) != "undefined") {
                 return;
             }
-            p.graphics.beginFill(data.color).drawRect(data.x, data.y, 1, 1);
+            p.graphics.beginFill(data.color).drawRect(0, 0, 1, 1);
             dots[data.dot_id] = p;
             stage.addChild(p);
+            dots[data.dot].x = data.x
+            dots[data.dot].y = data.y
             stage.update();
         }
 
@@ -95,7 +98,7 @@
     </script>
 </head>
 <body>
-    <canvas id="demoCanvas" width="500" height="600" style="border: 2px solid black;">
+    <canvas id="demoCanvas" width="900" height="900" style="border: 2px solid black;">
         alternate content
     </canvas>
     <img style="float: left;" id="map" src="/sample_noise">

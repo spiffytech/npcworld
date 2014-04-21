@@ -9,7 +9,10 @@ import os.path
 from PIL import Image
 from pprint import pprint
 import random
+import sys
 import time
+
+from dijkstar import Graph, find_path
 
 random.seed(time.time)
 
@@ -26,22 +29,22 @@ import noise
 from collections import namedtuple
 Cell = namedtuple("Cell", "type_ x y")
 
-@app.route("/render_viewport")
-def render_viewport():
-    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    width, height = map(int, request.args.get("size").split("x"))
-    scale = .5  # TODO: Get this from browser
-    top_left_a, top_left_b = map(int, request.args.get("top_left").split("x"))
-    tiles = tiles_in_viewport(
-       grid= grid,
-       pos={"a": top_left_a, "b": top_left_b},
-       viewport_width=width,
-       viewport_height=height,
-       scale=scale
-    )
-
-    return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
-
+#@app.route("/render_viewport")
+#def render_viewport():
+#    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+#    width, height = map(int, request.args.get("size").split("x"))
+#    scale = .5  # TODO: Get this from browser
+#    top_left_a, top_left_b = map(int, request.args.get("top_left").split("x"))
+#    tiles = tiles_in_viewport(
+#       grid= grid,
+#       pos={"a": top_left_a, "b": top_left_b},
+#       viewport_width=width,
+#       viewport_height=height,
+#       scale=scale
+#    )
+#
+#    return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
+#
 def event(e):
     if not hasattr(event, "events"):
         event.events = []
@@ -59,17 +62,25 @@ def movement_stream():
         msg += "\n"
         return str(msg)
 
+    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    print "Making graph..."
+    graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
+    print "Graph made"
     dots = [
         {
             "dot_id": 1,
             "color": "red",
             "x": 10,
             "y": 10,
+            "dest": (29, 1),
+            "path": find_path(graph, (10, 10), (59, 1), cost_func=lambda u, v, e, prev_e: e["cost"])[0]  # [0] is path, [1] is cost for each traversal, [2] is total cost
         }, {
             "dot_id": 2,
             "color": "blue",
             "x": 20,
             "y": 20,
+            "dest": (30, 1),
+            "path": find_path(graph, (20, 20), (60, 1), cost_func=lambda u, v, e, prev_e: e["cost"])[0]  # [0] is path, [1] is cost for each traversal, [2] is total cost
         }
     ]
     for dot in dots:
@@ -77,15 +88,46 @@ def movement_stream():
 
     import time
     time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary.
-    for i in range(50):
+    while True:
         for dot in dots:
-            payload = dict(
-                dot_id = dot["dot_id"],
-                x = dot["x"] + i,
-                y = dot["y"] + i
-            )
-            yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
+            if len(dot["path"]) > 0:
+                payload = dict(
+                    dot_id = dot["dot_id"],
+                    x = dot["path"][0][0],
+                    y = dot["path"][0][1],
+                )
+                print dot["dot_id"], dot["path"][0]
+                if len(dot["path"]) > 1:
+                    dot["path"] = dot["path"][1:]
+                else:
+                    dot["path"] = []
+                yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
         time.sleep(.1)
+
+def make_graph(grid):
+    graph = Graph()
+    for x in range(len(grid)):
+        for y, cell in enumerate(grid[x]):
+            neighbors = get_neighbors(grid, x, y)
+            for neighbor in neighbors:
+                graph.add_edge(
+                    (x, y),
+                    (neighbor["x"], neighbor["y"]),
+                    {"cost": sys.maxint if cell in ["shallow_water", "deep_water"] else 1}
+                )
+
+    return graph
+
+def get_neighbors(grid, x, y):
+    row_len = len(grid[x])
+    col_len = len(grid)
+    neighbors = []
+    for i in (-1, 0, 1):
+        for j in (-1, 0, 1):
+            if 0 <= x + i < row_len and 0 <= y + j < col_len:  # Allow referencing self, to ensure we can route to self if desired
+                neighbors.append(dict(x=x+i, y=y+j))
+
+    return neighbors
 
 @app.route("/movement")
 def movement():
