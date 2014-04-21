@@ -69,6 +69,9 @@
 
                 stage.update();
                 jQuery("#coords").html("(" + cursor.x + "," + cursor.y + ")");
+                jQuery.get("/cell_type", {x: cursor.x, y: cursor.y}, function(data) {
+                    jQuery("#cell_type").text(data);
+                });
             });
         });
 
@@ -135,6 +138,7 @@
 </head>
 <body>
     <p id="coords">(0,0)</p>
+    <p id="cell_type"></p>
     <canvas id="demoCanvas" width="900" height="900" style="border: 2px solid black;">
         alternate content
     </canvas>

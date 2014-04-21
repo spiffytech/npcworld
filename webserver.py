@@ -223,6 +223,11 @@ def sample_noise():
     return redirect("/static/terrain.png", code=302)
     #return Response(json.dumps(dict(grid=grid)), mimetype="application/json")
 
+@app.route("/cell_type")
+def query_cell_type():
+    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
+    return grid[int(request.args.get("x"))][int(request.args.get("y"))]
+
 def make_world_grid():
     print "Generating noise"
     global freqs_e
@@ -433,8 +438,19 @@ def smooth(x, y):
     return corners + sides + center
 
 def render_to_png(filename, data):
+    print "\n\n\n\n\n\n\n\n\nhere\n\n\n\n\n\n\n\n\n"
     image = Image.new('RGB', (len(data[0]), len(data)))  # type, size
+    # TODO: tuples
     out = []
+    ##rotated = []
+    #for col in range(len(data[0])):
+    ##    rotated.append([])
+    #    for row in range(len(data)):
+    #        cell = data[row][col]
+    ##        rotated[col].append(tuple(cell))
+    #        out.append(tuple(cell))
+    ##import pdb; pdb.set_trace()
+    ##data = rotated
     for row in data:
         for pixel in row:
             out.append(tuple(pixel))
