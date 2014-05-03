@@ -10,3 +10,4 @@ bpython
 pyzmq
 pyzmqrpc
 fn
+dijkstar

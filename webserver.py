@@ -16,8 +16,14 @@ from dijkstar import Graph, find_path
 
 random.seed(time.time)
 
+from fn import recur
+
 from dogpile.cache import make_region
 dpc = make_region().configure('dogpile.cache.memory')
+
+from collections import namedtuple
+
+from lib.attr_update import attr_update
 
 freqs_e = {}
 freqs_m = {}
@@ -66,46 +72,100 @@ def movement_stream():
     print "Making graph..."
     graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
     print "Graph made"
-    # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
-    # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
-    def cf(u, v, e, prev_e):
-        cell_type = grid[v[0]][v[1]]
-        return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
-
-    dots = [
-        {
-            "dot_id": 1,
-            "color": "red",
-            "x": 10,
-            "y": 10,
-            "dest": (29, 1),
-            "path": find_path(graph, (10, 10), (159, 1), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            "costs": find_path(graph, (10, 10), (159, 1), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-        }, {
-            "dot_id": 2,
-            "color": "blue",
-            "x": 20,
-            "y": 20,
-            "dest": (30, 1),
-            "path": find_path(graph, (20, 20), (139, 100), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            "costs": find_path(graph, (20, 20), (139, 100), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-        }
-    ]
-    #import pdb; pdb.set_trace()
-    for dot in dots:
-        yield build_sse_message(event_type="new_dot", event_id=time.time(), data=json.dumps(dot))
 
     time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary.
+    Worldstate = namedtuple("Worldstate", "dots time grid graph")
+    worldstate = Worldstate(dots=tuple(), time=0, grid=grid, graph=graph)
     while True:
+        browser_notifications = []
+        events = dot_ai(worldstate)
+        
+        @recur.tco
+        def handle_events(old_world, new_world, events):
+            event = events[0]
+            pre, handler, applier  = get_handler(event["class"])
+            assert(pre is not None)
+            assert(handler is not None)
+            assert(applier is not None)
+            world_params = pre(old_world)
+            results = handler(world_params, event["params"])  # TODO: Add event params to this list
+            newer_world = applier(new_world, **results)
+
+            if len(events) == 0:
+                return False, new_world
+            return True, (old_world, new_world, events[1:])
+
+        @event("notify_browser")
+        def notify_browser():
+            def pre(worldstate):
+                return dict(time=worldstate.time)
+
+            def handler(world_params, event_params):
+                # TODO: Don't mutate state. Fix that once ZMQ is in place and we can pub/sub to the browser subscribers.
+                browser_notifications.append(build_sse_message(
+                    event_type=event_params["event_type"],
+                    event_id=world_params["time"],
+                    data=json.dumps(event_params["payload"])
+                ))
+                
+            def applier(new_world, **results):
+                return new_world
+
+            return pre, handler, applier
+
+        worldstate = handle_events(worldstate, worldstate, events)
+
+        for event in browser_notifications:  # TODO: Move this once the event loop gets separated from the browser subscribers
+            yield event
+
+        delta_t = 1
+        worldstate = attr_update(worldstate, time=time+t_delta)
+        time.sleep(t_delta)
+
+def dot_ai(worldstate):
+    import pdb; pdb.set_trace()
+    if worldstate.time == 0:  # Second event - move dots
+        # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
+        # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
+        def cf(u, v, e, prev_e):
+            grid = worldstate.grid
+            cell_type = grid[v[0]][v[1]]
+            return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
+
+        graph = worldstate.graph
+        dots = [
+            {
+                "dot_id": 1,
+                "color": "red",
+                "x": 10,
+                "y": 10,
+                "dest": (29, 1),
+                "path": find_path(graph, (10, 10), (159, 1), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (10, 10), (159, 1), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            }, {
+                "dot_id": 2,
+                "color": "blue",
+                "x": 20,
+                "y": 20,
+                "dest": (30, 1),
+                "path": find_path(graph, (20, 20), (139, 100), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (20, 20), (139, 100), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            }
+        ]
         for dot in dots:
-            if len(dot["path"]) > 0:
-                payload = dict(
-                    dot_id = dot["dot_id"],
-                    path = dot["path"],
-                    speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
-                )
-                yield build_sse_message(event_type="movement", event_id=time.time(), data=json.dumps(payload))
-        time.sleep(10000000)
+            events.append(dict(event_type="new_dot", payload=dot))
+        return
+
+    events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
+    if worldstate.time == 1:  # Second event - move dots
+        for dot in worldstate.dots:
+            payload = dict(
+                dot_id = dot["dot_id"],
+                path = dot["path"],
+                speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
+            )
+            events.append(dict(event_type="movement", payload=payload))
+        return
 
 def make_graph(grid):
     graph = Graph()
