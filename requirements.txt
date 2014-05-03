@@ -9,3 +9,4 @@ pyramid<1.5
 bpython
 pyzmq
 pyzmqrpc
+fn
