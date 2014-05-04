@@ -77,6 +77,18 @@ def replace_true(new_val_fn, cmp, seq):
     """new_val is a function that applies the new value. cmp is a function accepting the current value and returning True if it should be replaced."""
     return tuple(new_val_fn(val) if cmp(val) else val for val in seq)
 
+def next_tick_time(current_tick):
+    t = time.time()
+    next_tick = max(t, current_tick + frames_to_secs(1))
+    delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
+    if delta == 0:
+        logger.warn("Frame ran too long by %d secs", t - next_tick)
+
+    return (
+        next_tick,
+        delta
+    )
+
 def event(e):
     def _predicate(f):
         @functools.wraps(f)
@@ -147,7 +159,7 @@ def movement_stream():
         try:
             len(events)
         except:
-            sleep(.1)  # TODO: wrap event handling in a function and just skip calling the function if the events list is empty. This is an ugly hack.
+            time.sleep(.1)  # TODO: wrap event handling in a function and just skip calling the function if the events list is empty. This is an ugly hack.
             continue
 
         worldstate = reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
@@ -160,21 +172,9 @@ def movement_stream():
         for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
             yield event
         worldstate = attr_update(worldstate, browser=tuple())  # TODO: To variable replacement
+
         logger.debug("3")
-
-        def next_tick_time(current_tick):
-            t = time.time()
-            next_tick = max(t, current_tick + frames_to_secs(1))
-            delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
-            if delta == 0:
-                logger.warn("Frame ran too long by %d secs", t - next_tick)
-
-            return (
-                next_tick,
-                delta
-            )
-
-        worldstate = attr_update(  # TODO: Return from recursive function instead of replacing a variable value
+        worldstate = attr_update(  # TODO: Return new worldstate from recursive function instead of replacing a variable value
             worldstate,
             ticks=_+1,  # Elapsed ticks in game
         )
