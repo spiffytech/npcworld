@@ -1,11 +1,15 @@
+from __future__ import division
+
 import simplejson as json
 import flask
 from flask import Flask, render_template, Response, redirect, request
 app = Flask(__name__, static_path="/static")
 
+import functools
 import math
 from functools import partial
 import os.path
+import logging
 from PIL import Image
 from pprint import pprint
 import random
@@ -16,7 +20,8 @@ from dijkstar import Graph, find_path
 
 random.seed(time.time)
 
-from fn import recur
+from fn.uniform import *
+from fn import recur, _
 
 from dogpile.cache import make_region
 dpc = make_region().configure('dogpile.cache.memory')
@@ -35,6 +40,16 @@ import noise
 from collections import namedtuple
 Cell = namedtuple("Cell", "type_ x y")
 
+logging.basicConfig(level=logging.DEBUG)
+for handler in logging.root.handlers:  # This makes sure we only show pdiff logs, not logs from all the other modules we import
+    handler.addFilter(logging.Filter("npcworld"))
+logger = logging.getLogger("npcworld")
+
+FPS = 60
+FPS = 10
+frames_to_secs = lambda frames: frames / FPS
+secs_to_frames = lambda secs: secs * FPS
+
 #@app.route("/render_viewport")
 #def render_viewport():
 #    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
@@ -51,83 +66,132 @@ Cell = namedtuple("Cell", "type_ x y")
 #
 #    return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
 #
-def event(e):
-    if not hasattr(event, "events"):
-        event.events = []
-    event.events.append(e)
-    def func(f):
-        return f
-    return func
+def build_sse_message(event_type, event_id, data):
+    msg = "id: %s\nevent: %s\n" % (event_id, event_type)
+    for line in data.strip().split("\n"):
+        msg += "data: %s\n" % line
+    msg += "\n"
+    return str(msg)
 
+def replace_true(new_val_fn, cmp, seq):
+    """new_val is a function that applies the new value. cmp is a function accepting the current value and returning True if it should be replaced."""
+    return tuple(new_val_fn(val) if cmp(val) else val for val in seq)
+
+def event(e):
+    def _predicate(f):
+        @functools.wraps(f)
+        def func(*args, **kwargs):
+            return f(*args, **kwargs)
+
+        if not hasattr(event, "events"):
+            event.events = {}
+        event.events[e] = func
+        logger.debug("event %s: %s", e, f)
+
+        return func
+    return _predicate
+
+@event("notify_browser")
+def notify_browser(old_world, new_world, event_params):
+    new_event = build_sse_message(
+        event_type=event_params["event_type"],
+        event_id=time.time(),  # TODO: come up with a globally-unique thing I can put here that's replayable for connection catch-up
+        data=json.dumps(event_params["payload"])
+    )
+    return attr_update(new_world, browser = _ + (new_event,))
+
+@event("new_dot")
+def new_dot(old_world, new_world, new_dot):
+    return attr_update(new_world, dots=_ + (new_dot,))
+
+@event("movement")
+def new_dot(old_world, new_world, payload):
+    return attr_update(
+        new_world,
+        dots = lambda dots: replace_true(
+            new_val_fn = lambda dot: dict(dot, path=payload["path"]),
+            cmp = lambda dot: dot["dot_id"] == payload["dot_id"],
+            seq = dots
+        )
+    )
+
+def get_handler(event_name):
+    return event.events[event_name]
+
+def handle_event(old_world, new_world, event):
+    handler = get_handler(event["event_type"])
+    return handler(old_world, new_world, event["payload"])
 
 def movement_stream():
-    def build_sse_message(event_type, event_id, data):
-        msg = "id: %s\nevent: %s\n" % (event_id, event_type)
-        for line in data.strip().split("\n"):
-            msg += "data: %s\n" % line
-        msg += "\n"
-        return str(msg)
-
     grid = dpc.get_or_create("grid", make_world_grid, 60*60)
     print "Making graph..."
     graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
     print "Graph made"
 
-    time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary.
-    Worldstate = namedtuple("Worldstate", "dots time grid graph")
-    worldstate = Worldstate(dots=tuple(), time=0, grid=grid, graph=graph)
+    time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary. TODO: Find out.
+    Worldstate = namedtuple("Worldstate", "dots ticks grid graph browser")
+    worldstate = Worldstate(
+        dots=tuple(),
+        ticks=0,
+        grid=grid,
+        graph=graph,
+        browser=tuple()
+    )
+
+    logger.info("Starting game loop")
     while True:
-        browser_notifications = []
-        events = dot_ai(worldstate)
-        
-        @recur.tco
-        def handle_events(old_world, new_world, events):
-            event = events[0]
-            pre, handler, applier  = get_handler(event["class"])
-            assert(pre is not None)
-            assert(handler is not None)
-            assert(applier is not None)
-            world_params = pre(old_world)
-            results = handler(world_params, event["params"])  # TODO: Add event params to this list
-            newer_world = applier(new_world, **results)
+        logger.debug("New tick: %d", worldstate.ticks)
+        curr_time = time.time()  # TODO: Move to recursive function parameter
+        events = dot_ai(worldstate)  # TODO: Move to recursive function parameter
+        logger.debug("1")
+        try:
+            len(events)
+        except:
+            sleep(.1)  # TODO: wrap event handling in a function and just skip calling the function if the events list is empty. This is an ugly hack.
+            continue
 
-            if len(events) == 0:
-                return False, new_world
-            return True, (old_world, new_world, events[1:])
+        worldstate = reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
+            lambda new_world, event: handle_event(worldstate, new_world, event) or new_world,  # Not all handlers will return anything. Some just need to listen and do something else (e.g., notify the browser subsystem)
+            events,
+            worldstate
+        )
+        logger.debug("2")
 
-        @event("notify_browser")
-        def notify_browser():
-            def pre(worldstate):
-                return dict(time=worldstate.time)
-
-            def handler(world_params, event_params):
-                # TODO: Don't mutate state. Fix that once ZMQ is in place and we can pub/sub to the browser subscribers.
-                browser_notifications.append(build_sse_message(
-                    event_type=event_params["event_type"],
-                    event_id=world_params["time"],
-                    data=json.dumps(event_params["payload"])
-                ))
-                
-            def applier(new_world, **results):
-                return new_world
-
-            return pre, handler, applier
-
-        worldstate = handle_events(worldstate, worldstate, events)
-
-        for event in browser_notifications:  # TODO: Move this once the event loop gets separated from the browser subscribers
+        for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
             yield event
+        worldstate = attr_update(worldstate, browser=tuple())  # TODO: To variable replacement
+        logger.debug("3")
 
-        delta_t = 1
-        worldstate = attr_update(worldstate, time=time+t_delta)
-        time.sleep(t_delta)
+        def next_tick_time(current_tick):
+            t = time.time()
+            next_tick = max(t, current_tick + frames_to_secs(1))
+            delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
+            if delta == 0:
+                logger.warn("Frame ran too long by %d secs", t - next_tick)
+
+            return (
+                next_tick,
+                delta
+            )
+
+        worldstate = attr_update(  # TODO: Return from recursive function instead of replacing a variable value
+            worldstate,
+            ticks=_+1,  # Elapsed ticks in game
+        )
+        logger.debug("4")
+
+        curr_time, delta = next_tick_time(curr_time)
+        logger.debug("5")
+        logger.debug("Sleeping for %s", delta)
+        time.sleep(delta)
+    logger.critical("Movement stream loop ended early!")
 
 def dot_ai(worldstate):
-    import pdb; pdb.set_trace()
-    if worldstate.time == 0:  # Second event - move dots
+    events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
+    if worldstate.ticks == 0:  # Second event - move dots
         # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
         # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
-        def cf(u, v, e, prev_e):
+        def cost_func(u, v, e, prev_e):
             grid = worldstate.grid
             cell_type = grid[v[0]][v[1]]
             return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
@@ -140,32 +204,40 @@ def dot_ai(worldstate):
                 "x": 10,
                 "y": 10,
                 "dest": (29, 1),
-                "path": find_path(graph, (10, 10), (159, 1), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": find_path(graph, (10, 10), (159, 1), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "path": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
             }, {
                 "dot_id": 2,
                 "color": "blue",
                 "x": 20,
                 "y": 20,
                 "dest": (30, 1),
-                "path": find_path(graph, (20, 20), (139, 100), cost_func=cf)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": find_path(graph, (20, 20), (139, 100), cost_func=cf)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "path": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
             }
         ]
         for dot in dots:
             events.append(dict(event_type="new_dot", payload=dot))
-        return
+            events.append(dict(event_type="notify_browser", payload=dict(event_type="new_dot", payload=dot)))
+        logger.debug("AI: creating new dots")
+        return events
 
-    events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
-    if worldstate.time == 1:  # Second event - move dots
+    if worldstate.ticks == 1:  # Second event - move dots
         for dot in worldstate.dots:
-            payload = dict(
+            browser_payload = dict(
                 dot_id = dot["dot_id"],
                 path = dot["path"],
                 speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
             )
-            events.append(dict(event_type="movement", payload=payload))
-        return
+            events.append(dict(event_type="movement", payload=browser_payload))
+
+            event_payload = dict(
+                event_type="movement",
+                payload=browser_payload
+            )
+            events.append(dict(event_type="notify_browser", payload=event_payload))
+        logger.debug("AI: moving dots")
+        return events
 
 def make_graph(grid):
     graph = Graph()
