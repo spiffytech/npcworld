@@ -134,6 +134,13 @@ def handle_event(old_world, new_world, event):
     handler = get_handler(event["event_type"])
     return handler(old_world, new_world, event["payload"])
 
+def handle_events(worldstate, events):
+    return reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
+        lambda new_world, event: handle_event(worldstate, new_world, event) or new_world,  # Not all handlers will return anything. Some just need to listen and do something else (e.g., notify the browser subsystem)
+        events,
+        worldstate
+    )
+
 def movement_stream():
     grid = dpc.get_or_create("grid", make_world_grid, 60*60)
     print "Making graph..."
@@ -156,27 +163,18 @@ def movement_stream():
         curr_time = time.time()  # TODO: Move to recursive function parameter
         events = dot_ai(worldstate)  # TODO: Move to recursive function parameter
         logger.debug("1")
-        try:
-            len(events)
-        except:
-            time.sleep(.1)  # TODO: wrap event handling in a function and just skip calling the function if the events list is empty. This is an ugly hack.
-            continue
+        if events is not None:
+            worldstate = handle_events(worldstate, events)  # TODO: New variable name
+            logger.debug("2")
 
-        worldstate = reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
-            lambda new_world, event: handle_event(worldstate, new_world, event) or new_world,  # Not all handlers will return anything. Some just need to listen and do something else (e.g., notify the browser subsystem)
-            events,
-            worldstate
-        )
-        logger.debug("2")
-
-        for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
-            yield event
-        worldstate = attr_update(worldstate, browser=tuple())  # TODO: To variable replacement
+            for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
+                yield event
 
         logger.debug("3")
         worldstate = attr_update(  # TODO: Return new worldstate from recursive function instead of replacing a variable value
             worldstate,
             ticks=_+1,  # Elapsed ticks in game
+            browser=tuple()  # Clear browser notifications
         )
         logger.debug("4")
 
