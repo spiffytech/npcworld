@@ -11,3 +11,4 @@ pyzmq
 pyzmqrpc
 fn
 dijkstar
+pytest

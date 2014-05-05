@@ -1,15 +1,16 @@
 from __future__ import division
+from __future__ import absolute_import
+
+from lib import events, utils
 
 import simplejson as json
 import flask
 from flask import Flask, render_template, Response, redirect, request
 app = Flask(__name__, static_path="/static")
 
-import functools
 import math
 from functools import partial
 import os.path
-import logging
 from PIL import Image
 from pprint import pprint
 import random
@@ -40,46 +41,11 @@ import noise
 from collections import namedtuple
 Cell = namedtuple("Cell", "type_ x y")
 
-logging.basicConfig(level=logging.DEBUG)
-for handler in logging.root.handlers:  # This makes sure we only show pdiff logs, not logs from all the other modules we import
-    handler.addFilter(logging.Filter("npcworld"))
-logger = logging.getLogger("npcworld")
-
-FPS = 60
-FPS = 10
-frames_to_secs = lambda frames: frames / FPS
-secs_to_frames = lambda secs: secs * FPS
-
-#@app.route("/render_viewport")
-#def render_viewport():
-#    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-#    width, height = map(int, request.args.get("size").split("x"))
-#    scale = .5  # TODO: Get this from browser
-#    top_left_a, top_left_b = map(int, request.args.get("top_left").split("x"))
-#    tiles = tiles_in_viewport(
-#       grid= grid,
-#       pos={"a": top_left_a, "b": top_left_b},
-#       viewport_width=width,
-#       viewport_height=height,
-#       scale=scale
-#    )
-#
-#    return Response(json.dumps(dict(tiles=tiles)), mimetype="application/json")
-#
-def build_sse_message(event_type, event_id, data):
-    msg = "id: %s\nevent: %s\n" % (event_id, event_type)
-    for line in data.strip().split("\n"):
-        msg += "data: %s\n" % line
-    msg += "\n"
-    return str(msg)
-
-def replace_true(new_val_fn, cmp, seq):
-    """new_val is a function that applies the new value. cmp is a function accepting the current value and returning True if it should be replaced."""
-    return tuple(new_val_fn(val) if cmp(val) else val for val in seq)
+logger = utils.logger
 
 def next_tick_time(current_tick):
     t = time.time()
-    next_tick = max(t, current_tick + frames_to_secs(1))
+    next_tick = max(t, current_tick + utils.frames_to_secs(1))
     delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
     if delta == 0:
         logger.warn("Frame ran too long by %d secs", t - next_tick)
@@ -87,58 +53,6 @@ def next_tick_time(current_tick):
     return (
         next_tick,
         delta
-    )
-
-def event(e):
-    def _predicate(f):
-        @functools.wraps(f)
-        def func(*args, **kwargs):
-            return f(*args, **kwargs)
-
-        if not hasattr(event, "events"):
-            event.events = {}
-        event.events[e] = func
-        logger.debug("event %s: %s", e, f)
-
-        return func
-    return _predicate
-
-@event("notify_browser")
-def notify_browser(old_world, new_world, event_params):
-    new_event = build_sse_message(
-        event_type=event_params["event_type"],
-        event_id=time.time(),  # TODO: come up with a globally-unique thing I can put here that's replayable for connection catch-up
-        data=json.dumps(event_params["payload"])
-    )
-    return attr_update(new_world, browser = _ + (new_event,))
-
-@event("new_dot")
-def new_dot(old_world, new_world, new_dot):
-    return attr_update(new_world, dots=_ + (new_dot,))
-
-@event("movement")
-def new_dot(old_world, new_world, payload):
-    return attr_update(
-        new_world,
-        dots = lambda dots: replace_true(
-            new_val_fn = lambda dot: dict(dot, path=payload["path"]),
-            cmp = lambda dot: dot["dot_id"] == payload["dot_id"],
-            seq = dots
-        )
-    )
-
-def get_handler(event_name):
-    return event.events[event_name]
-
-def handle_event(old_world, new_world, event):
-    handler = get_handler(event["event_type"])
-    return handler(old_world, new_world, event["payload"])
-
-def handle_events(worldstate, events):
-    return reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
-        lambda new_world, event: handle_event(worldstate, new_world, event) or new_world,  # Not all handlers will return anything. Some just need to listen and do something else (e.g., notify the browser subsystem)
-        events,
-        worldstate
     )
 
 def movement_stream():
@@ -161,10 +75,10 @@ def movement_stream():
     while True:
         logger.debug("New tick: %d", worldstate.ticks)
         curr_time = time.time()  # TODO: Move to recursive function parameter
-        events = dot_ai(worldstate)  # TODO: Move to recursive function parameter
+        events_ = dot_ai(worldstate)  # TODO: Move to recursive function parameter
         logger.debug("1")
-        if events is not None:
-            worldstate = handle_events(worldstate, events)  # TODO: New variable name
+        if events_ is not None:
+            worldstate = events.handle_events(worldstate, events_)  # TODO: New variable name
             logger.debug("2")
 
             for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
