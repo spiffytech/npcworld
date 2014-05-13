@@ -1,10 +1,10 @@
-from npcworld.lib import ai
+from npcworld.lib import ai, events
 from collections import namedtuple
 
 def test_notify_browser():
-    world = namedtuple("World", "browser")(browser=tuple())
+    world = namedtuple("World", "")()
     new_world = ai.notify_browser(world, world, dict(event_type="dummy_event", payload=2))
-    assert len(new_world.browser) == 1
+    assert events.browser_events.qsize() == 1
 
 def test_new_dot():
     world = namedtuple("World", "dots")(dots=tuple())

@@ -1,5 +1,10 @@
+from __future__ import absolute_import
+
 import functools
 from npcworld.lib.utils import logger
+
+from Queue import Queue
+browser_events = Queue()
 
 def event(e):
     def _predicate(f):

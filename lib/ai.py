@@ -7,12 +7,12 @@ from npcworld.lib.attr_update import attr_update
 
 @events.event("notify_browser")
 def notify_browser(old_world, new_world, event_params):
-    new_event = utils.build_sse_message(
+    browser_event = utils.build_sse_message(
         event_type=event_params["event_type"],
         event_id=time.time(),  # TODO: come up with a globally-unique thing I can put here that's replayable for connection catch-up
         data=json.dumps(event_params["payload"])
     )
-    return attr_update(new_world, browser = _ + (new_event,))
+    events.browser_events.put(browser_event)
 
 @events.event("new_dot")
 def new_dot(old_world, new_world, new_dot):  # TODO: Pass a Dot object here instead of a dict
@@ -30,3 +30,56 @@ def move_dot(old_world, new_world, payload):
             seq = dots
         )
     )
+
+def dot_ai(worldstate):
+    events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
+    if worldstate.ticks == 0:  # Second event - move dots
+        # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
+        # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
+        def cost_func(u, v, e, prev_e):
+            grid = worldstate.grid
+            cell_type = grid[v[0]][v[1]]
+            return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
+
+        graph = worldstate.graph
+        dots = [
+            {
+                "dot_id": 1,
+                "color": "red",
+                "x": 10,
+                "y": 10,
+                "dest": (29, 1),
+                "path": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            }, {
+                "dot_id": 2,
+                "color": "blue",
+                "x": 20,
+                "y": 20,
+                "dest": (30, 1),
+                "path": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
+                "costs": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
+            }
+        ]
+        for dot in dots:
+            events.append(dict(event_type="new_dot", payload=dot))
+            events.append(dict(event_type="notify_browser", payload=dict(event_type="new_dot", payload=dot)))
+        logger.debug("AI: creating new dots")
+        return events
+
+    if worldstate.ticks == 1:  # Second event - move dots
+        for dot in worldstate.dots:
+            browser_payload = dict(
+                dot_id = dot["dot_id"],
+                path = dot["path"],
+                speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
+            )
+            events.append(dict(event_type="movement", payload=browser_payload))
+
+            event_payload = dict(
+                event_type="movement",
+                payload=browser_payload
+            )
+            events.append(dict(event_type="notify_browser", payload=event_payload))
+        logger.debug("AI: moving dots")
+        return events

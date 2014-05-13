@@ -15,6 +15,7 @@ from PIL import Image
 from pprint import pprint
 import random
 import sys
+import threading
 import time
 
 from dijkstar import Graph, find_path
@@ -24,132 +25,22 @@ random.seed(time.time)
 from fn.uniform import *
 from fn import recur, _
 
-from dogpile.cache import make_region
-dpc = make_region().configure('dogpile.cache.memory')
-
 from collections import namedtuple
 
-from lib.attr_update import attr_update
 
 freqs_e = {}
 freqs_m = {}
 freqs_t = {}
 
+from lib.attr_update import attr_update
 from lib import simplexnoise as sn
 import noise
+from lib import engine
 
 from collections import namedtuple
 Cell = namedtuple("Cell", "type_ x y")
 
 logger = utils.logger
-
-def next_tick_time(current_tick):
-    t = time.time()
-    next_tick = max(t, current_tick + utils.frames_to_secs(1))
-    delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
-    if delta == 0:
-        logger.warn("Frame ran too long by %d secs", t - next_tick)
-
-    return (
-        next_tick,
-        delta
-    )
-
-def movement_stream():
-    grid = dpc.get_or_create("grid", make_world_grid, 60*60)
-    print "Making graph..."
-    graph = dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
-    print "Graph made"
-
-    time.sleep(.1)  # Idunno, just give the drawing layer a chance to catch up. Don't know if it's necessary. TODO: Find out.
-    Worldstate = namedtuple("Worldstate", "dots ticks grid graph browser")
-    worldstate = Worldstate(
-        dots=tuple(),
-        ticks=0,
-        grid=grid,
-        graph=graph,
-        browser=tuple()
-    )
-
-    logger.info("Starting game loop")
-    while True:
-        logger.debug("New tick: %d", worldstate.ticks)
-        curr_time = time.time()  # TODO: Move to recursive function parameter
-        events_ = dot_ai(worldstate)  # TODO: Move to recursive function parameter
-        logger.debug("1")
-        if events_ is not None:
-            worldstate = events.handle_events(worldstate, events_)  # TODO: New variable name
-            logger.debug("2")
-
-            for event in worldstate.browser:  # TODO: Move this once the event loop gets separated from the browser subscribers
-                yield event
-
-        logger.debug("3")
-        worldstate = attr_update(  # TODO: Return new worldstate from recursive function instead of replacing a variable value
-            worldstate,
-            ticks=_+1,  # Elapsed ticks in game
-            browser=tuple()  # Clear browser notifications
-        )
-        logger.debug("4")
-
-        curr_time, delta = next_tick_time(curr_time)
-        logger.debug("5")
-        logger.debug("Sleeping for %s", delta)
-        time.sleep(delta)
-    logger.critical("Movement stream loop ended early!")
-
-def dot_ai(worldstate):
-    events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
-    if worldstate.ticks == 0:  # Second event - move dots
-        # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
-        # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
-        def cost_func(u, v, e, prev_e):
-            grid = worldstate.grid
-            cell_type = grid[v[0]][v[1]]
-            return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
-
-        graph = worldstate.graph
-        dots = [
-            {
-                "dot_id": 1,
-                "color": "red",
-                "x": 10,
-                "y": 10,
-                "dest": (29, 1),
-                "path": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": find_path(graph, (10, 10), (159, 1), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            }, {
-                "dot_id": 2,
-                "color": "blue",
-                "x": 20,
-                "y": 20,
-                "dest": (30, 1),
-                "path": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": find_path(graph, (20, 20), (139, 100), cost_func=cost_func)[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            }
-        ]
-        for dot in dots:
-            events.append(dict(event_type="new_dot", payload=dot))
-            events.append(dict(event_type="notify_browser", payload=dict(event_type="new_dot", payload=dot)))
-        logger.debug("AI: creating new dots")
-        return events
-
-    if worldstate.ticks == 1:  # Second event - move dots
-        for dot in worldstate.dots:
-            browser_payload = dict(
-                dot_id = dot["dot_id"],
-                path = dot["path"],
-                speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
-            )
-            events.append(dict(event_type="movement", payload=browser_payload))
-
-            event_payload = dict(
-                event_type="movement",
-                payload=browser_payload
-            )
-            events.append(dict(event_type="notify_browser", payload=event_payload))
-        logger.debug("AI: moving dots")
-        return events
 
 def make_graph(grid):
     graph = Graph()
@@ -177,7 +68,12 @@ def get_neighbors(grid, x, y):
 
 @app.route("/movement")
 def movement():
-    return Response(movement_stream(), mimetype="text/event-stream");
+    def streamer():
+        while True:
+            event = events.browser_events.get()
+            yield event
+
+    return Response(streamer(), mimetype="text/event-stream");
 
 def viewport_size_in_tiles(width, height, scale):
     TILE_WIDTH = 168
@@ -485,6 +381,8 @@ def render_to_png(filename, data):
 
 
 if __name__ == "__main__":
+    threading.Thread(target=engine.run_game).start()
+
     app.run(host="0.0.0.0", debug=True)
 
     #import cProfile

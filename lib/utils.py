@@ -1,3 +1,6 @@
+from dogpile.cache import make_region
+dpc = make_region().configure('dogpile.cache.memory')
+
 import logging
 logging.basicConfig(level=logging.DEBUG)
 for handler in logging.root.handlers:  # This makes sure we only show pdiff logs, not logs from all the other modules we import
