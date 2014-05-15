@@ -1,3 +1,5 @@
+from __future__ import division
+
 from dogpile.cache import make_region
 dpc = make_region().configure('dogpile.cache.memory')
 
