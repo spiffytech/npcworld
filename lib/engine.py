@@ -1,19 +1,22 @@
 from collections import namedtuple
-from fn import recur
+from fn import _, recur
 import time
 
 from npcworld.lib.utils import logger
-from npcworld.lib import ai, utils
+from npcworld.lib import ai, events, utils, worldmaker
 
-def next_tick_time(current_tick, current_time=None):
+from npcworld.lib.attr_update import attr_update
+
+def calc_next_tick_time(current_tick, current_time=None):  # current_time parameter used for unit testing
     if current_time is None:
         t = time.time()
     else:
         t = current_time
-    next_tick = max(t, current_tick + utils.frames_to_secs(1))
+    expected_next_tick = current_tick + utils.frames_to_secs(1)
+    next_tick = max(expected_next_tick, t)
     delta = max(0, next_tick - t)  # Time delta to next tick. If we take < 1 frame's time to render a frame, sleep until the next frame tick. If we're taking longer than 1 frame's time to render each frame, don't sleep. 
     if delta == 0:
-        logger.warn("Frame ran too long by %d secs", t - next_tick)
+        logger.warn("Frame ran too long by %f secs", t - expected_next_tick)
 
     return (
         next_tick,
@@ -21,9 +24,11 @@ def next_tick_time(current_tick, current_time=None):
     )
 
 def run_game():
-    grid = utils.dpc.get_or_create("grid", make_world_grid, 60*60)
+    logger.info("Running the game")
+    grid = utils.dpc.get_or_create("grid", worldmaker.make_world_grid, 60*60)
+    utils.dpc.get_or_create("render_minimap", lambda: worldmaker.render_to_png("terrain.png", worldmaker.colorize_minimap(grid)), 60*60)
     logger.info("Making graph...")
-    graph = utils.dpc.get_or_create("graph", lambda: make_graph(grid), 60*60)
+    graph = utils.dpc.get_or_create("graph", lambda: worldmaker.make_graph(grid), 60*60)
     logger.info("Graph made")
 
     Worldstate = namedtuple("Worldstate", "dots ticks grid graph")
@@ -54,7 +59,7 @@ def game_loop(worldstate, current_tick_time, ttl=None):
         ticks=_+1,  # Elapsed ticks in game
     )
 
-    next_tick_time, delta = next_tick_time(current_tick_time)  # Get times for next frame
+    next_tick_time, delta = calc_next_tick_time(current_tick_time)  # Get times for next frame
     logger.debug("Sleeping for %s", delta)
     time.sleep(delta)
 

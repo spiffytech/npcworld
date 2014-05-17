@@ -103,6 +103,11 @@
 
         function move_dot(data) {
             // TODO: Use world update event system here instead of in-place variable updates. FUNCTIONAL PROGRAMMING! \o/
+            console.log(data.path.length);
+            if(data.path.length === 0) {
+                return;
+            }
+
             var new_loc = data.path[0];
             dots[data.dot_id].x = new_loc[0];
             dots[data.dot_id].y = new_loc[1];

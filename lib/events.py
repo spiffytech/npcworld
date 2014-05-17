@@ -3,8 +3,11 @@ from __future__ import absolute_import
 import functools
 from npcworld.lib.utils import logger
 
-from Queue import Queue
+from gevent.queue import Queue
 browser_events = Queue()
+logger.debug("Queue ID when created: %s", id(browser_events))
+import threading
+logger.debug("Thread ID events: %s", threading.current_thread())
 
 def event(e):
     def _predicate(f):
