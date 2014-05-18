@@ -94,3 +94,4 @@ def dot_ai(worldstate):
             events.append(dict(event_type="notify_browser", payload=event_payload))
         utils.logger.debug("AI: moving dots")
         return events
+    return events

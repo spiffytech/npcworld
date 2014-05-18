@@ -1,5 +1,6 @@
 from collections import namedtuple
 from fn import _, recur
+import itertools
 import time
 
 from npcworld.lib.utils import logger
@@ -50,9 +51,11 @@ def run_game():
 def game_loop(worldstate, current_tick_time, ttl=None):
     logger.debug("New tick: %d", worldstate.ticks)
 
-    events_ = ai.dot_ai(worldstate)
-    if events_ is not None:
-        worldstate = events.handle_events(worldstate, events_)  # TODO: New variable name, because FP
+    events_ = itertools.chain(
+        ai.dot_ai(worldstate),
+        events.process_browser_events(worldstate)
+    )
+    worldstate = events.handle_events(worldstate, events_)  # TODO: New variable name, because FP
 
     new_worldstate = attr_update(
         worldstate,

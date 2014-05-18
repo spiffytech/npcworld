@@ -44,26 +44,27 @@
             jQuery(document).keydown(function(e) {
                 switch(e.which) {
                     case 37: // left
-                    if(cursor.x != 0) {
-                        cursor.x -= 1;
-                    }
-                    break;
+                        if(cursor.x != 0) {
+                            cursor.x -= 1;
+                        }
+                        break;
 
                     case 38: // up
-                    if(cursor.y != 0) {
-                        cursor.y -= 1;
-                    }
-                    break;
+                        if(cursor.y != 0) {
+                            cursor.y -= 1;
+                        }
+                        break;
 
                     case 39: // right
-                    cursor.x += 1;
-                    break;
+                        cursor.x += 1;
+                        break;
 
                     case 40: // down
-                    cursor.y += 1;
-                    break;
+                        cursor.y += 1;
+                        break;
 
-                    default: return; // exit this handler for other keys
+                    default:
+                        return; // exit this handler for other keys
                 }
                 e.preventDefault(); // prevent the default action (scroll / move caret)
 
@@ -99,15 +100,19 @@
             if(data.dot_id == 2) {
                 jQuery("#dot_path").text(JSON.stringify(data.path));
             }
+            console.log("Dot added: " + data.dot_id);
         }
 
         function move_dot(data) {
             // TODO: Use world update event system here instead of in-place variable updates. FUNCTIONAL PROGRAMMING! \o/
-            console.log(data.path.length);
+            console.log("Moving dot " + data.dot_id + " " + data.path.length);
             if(data.path.length === 0) {
                 return;
             }
 
+            if(typeof dots[data.dot_id] === "undefined"){
+                true;
+            }
             var new_loc = data.path[0];
             dots[data.dot_id].x = new_loc[0];
             dots[data.dot_id].y = new_loc[1];

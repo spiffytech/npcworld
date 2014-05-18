@@ -43,6 +43,13 @@ def movement():
 
     return Response(streamer(), mimetype="text/event-stream");
 
+@app.route("/browser_input")
+def browser_input():
+    events.browser_events_inbound.put(dict(
+        name=request.args.get("name"),
+        params=json.loads(request.args.get("params"))
+    ))
+
 def viewport_size_in_tiles(width, height, scale):
     TILE_WIDTH = 168
     TILE_HEIGHT = 97

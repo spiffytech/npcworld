@@ -1,10 +1,13 @@
 from __future__ import absolute_import
 
 import functools
+from functools import partial
+from fn import recur
 from npcworld.lib.utils import logger
 
 from gevent.queue import Queue
 browser_events = Queue()
+browser_events_inbound = Queue()
 logger.debug("Queue ID when created: %s", id(browser_events))
 import threading
 logger.debug("Thread ID events: %s", threading.current_thread())
@@ -37,3 +40,16 @@ def handle_events(worldstate, events):
         worldstate
     )
 
+def process_browser_events(worldstate):
+    @recur.tco
+    def grab_events(events, queue):
+        event_map = dict()
+
+        if queue.qsize() == 0:
+            return False, events
+        else:
+            event = queue.get()
+            return True, events + partial(event_map[event["name"]], **event["params"])
+
+    ret = grab_events(tuple(), browser_events_inbound)
+    return grab_events(tuple(), browser_events_inbound)
