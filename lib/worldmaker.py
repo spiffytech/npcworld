@@ -1,5 +1,6 @@
 import math
 from dijkstar import Graph, find_path
+from filecache import filecache
 from PIL import Image
 import os.path
 from functools import partial
@@ -13,6 +14,7 @@ import noise
 
 random.seed(time.time)
 
+@filecache(60*60)
 def make_world_grid():
     print "Generating noise"
     global freqs_e
@@ -234,6 +236,7 @@ def render_to_png(filename, data):
     image.putdata(out)
     image.save(os.path.join("static", filename))  # takes type from filename extension
 
+@filecache(60*60)
 def make_graph(grid):
     graph = Graph()
     for x in range(len(grid)):

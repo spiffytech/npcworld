@@ -12,3 +12,4 @@ pyzmqrpc
 fn
 dijkstar
 pytest
+filecache

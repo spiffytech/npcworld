@@ -8,9 +8,6 @@ from npcworld.lib.utils import logger
 from gevent.queue import Queue
 browser_events = Queue()
 browser_events_inbound = Queue()
-logger.debug("Queue ID when created: %s", id(browser_events))
-import threading
-logger.debug("Thread ID events: %s", threading.current_thread())
 
 def event(e):
     def _predicate(f):

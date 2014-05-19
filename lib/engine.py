@@ -63,7 +63,7 @@ def game_loop(worldstate, current_tick_time, ttl=None):
     )
 
     next_tick_time, delta = calc_next_tick_time(current_tick_time)  # Get times for next frame
-    logger.debug("Sleeping for %s", delta)
+    logger.debug("Sleeping for %s (%s%%)", delta, round(delta * 1000, 2))
     time.sleep(delta)
 
     # TTL stuff is in place to let us unit test this function, which we can't do if it runs forever

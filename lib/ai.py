@@ -1,3 +1,4 @@
+from filecache import filecache
 from fn import _
 import simplejson as json
 import time
@@ -16,12 +17,7 @@ def notify_browser(old_world, new_world, event_params):
         event_id=time.time(),  # TODO: come up with a globally-unique thing I can put here that's replayable for connection catch-up
         data=json.dumps(event_params["payload"])
     )
-    utils.logger.debug("Putting event into browser queue")
     events.browser_events.put(browser_event)
-    utils.logger.debug("Queue size: %d", events.browser_events.qsize())
-    utils.logger.debug("Queue ID when inserted: %s", id(events.browser_events))
-    import threading
-    utils.logger.debug("Thread ID notify_browser: %s", threading.current_thread())
 
 @events.event("new_dot")
 def new_dot(old_world, new_world, new_dot):  # TODO: Pass a Dot object here instead of a dict
@@ -39,6 +35,10 @@ def move_dot(old_world, new_world, payload):
             seq = dots
         )
     )
+
+@filecache(60*60)
+def plot_path(*args, **kwargs):
+    return find_path(*args, **kwargs)
 
 def dot_ai(worldstate):
     events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
