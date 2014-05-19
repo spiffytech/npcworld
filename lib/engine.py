@@ -28,7 +28,6 @@ def run_game():
     logger.info("Running the game")
     grid = utils.dpc.get_or_create("grid", worldmaker.make_world_grid, 60*60)
     utils.dpc.get_or_create("render_minimap", lambda: worldmaker.render_to_png("terrain.png", worldmaker.colorize_minimap(grid)), 60*60)
-    logger.info("Making graph...")
     graph = utils.dpc.get_or_create("graph", lambda: worldmaker.make_graph(grid), 60*60)
     logger.info("Graph made")
 

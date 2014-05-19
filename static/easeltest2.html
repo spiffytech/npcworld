@@ -74,14 +74,20 @@
                     jQuery("#cell_type").text(data);
                 });
             });
+
+            jQuery(window).unload(function() {  // Doesn't seem to get called
+                eventsource.close();  // Stop handling events. Prevents us from parsing new events the server sends out that are meant for a clean page state.
+            });
         });
 
         function prepare_sse() {
-            var eventsource = new EventSource("/movement");
+            eventsource = new EventSource("/movement");
             eventsource.addEventListener("new_dot", function(e) {
+                console.log("Calling new_dot handler");
                 add_dot(JSON.parse(e.data));
             });
             eventsource.addEventListener("movement", function(e) {
+                console.log("Calling move_dot handler");
                 move_dot(JSON.parse(e.data));
             });
         }
@@ -109,6 +115,14 @@
             if(data.path.length === 0) {
                 return;
             }
+
+            /*
+
+            **************************
+            * If things blow up here indicating dot 1 is undefined, it's because when refreshing the page, the EventSource doesn't close, so it picks up the new_dot event, /then/ refreshes the page and starts processing new events
+            **************************
+
+            */
 
             if(typeof dots[data.dot_id] === "undefined"){
                 true;

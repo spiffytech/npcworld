@@ -10,6 +10,7 @@ import time
 from pprint import pprint
 
 from npcworld.lib import simplexnoise as sn
+from npcworld.lib import utils
 import noise
 
 random.seed(time.time)
@@ -236,8 +237,8 @@ def render_to_png(filename, data):
     image.putdata(out)
     image.save(os.path.join("static", filename))  # takes type from filename extension
 
-@filecache(60*60)
 def make_graph(grid):
+    utils.logger.info("Making graph...")
     graph = Graph()
     for x in range(len(grid)):
         for y, cell in enumerate(grid[x]):
