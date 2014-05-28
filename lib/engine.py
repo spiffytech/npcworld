@@ -31,9 +31,9 @@ def run_game():
     graph = utils.dpc.get_or_create("graph", lambda: worldmaker.make_graph(grid), 60*60)
     logger.info("Graph made")
 
-    Worldstate = namedtuple("Worldstate", "dots ticks grid graph")
+    Worldstate = namedtuple("Worldstate", "entities ticks grid graph")
     worldstate = Worldstate(
-        dots=tuple(),
+        entities=tuple(),
         ticks=0,
         grid=grid,
         graph=graph,

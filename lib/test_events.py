@@ -1,4 +1,5 @@
-from npcworld.lib import events
+from collections import namedtuple
+from npcworld.lib import ai, events, utils
 
 def setup_method():
     events.event.events = {}
@@ -33,3 +34,9 @@ def test_handle_events():
 
     handled = events.handle_events(1, (dict(event_type="handler", payload=2), dict(event_type="handler", payload=2)))
     assert handled == 4
+
+def test_new_dot_event():
+    world = namedtuple("World", "entities")(entities=tuple())
+    new_dot = utils.Dot(id=1, color=None, pos=dict(x=0, y=0))
+    new_world = ai.new_dot(world, world, new_dot)
+    assert new_world.entities[0] == new_dot
