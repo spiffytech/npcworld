@@ -9,6 +9,7 @@ from gevent.queue import Queue
 browser_events = Queue()
 browser_events_inbound = Queue()
 
+# Event decorator
 def event(e):
     def _predicate(f):
         @functools.wraps(f)

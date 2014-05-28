@@ -94,24 +94,24 @@
 
         function add_dot(data) {
             var p = new createjs.Shape();
-            if(typeof(dots[data.dot_id]) != "undefined") {
+            if(typeof(dots[data.id]) != "undefined") {
                 return;
             }
             p.graphics.beginFill(data.color).drawRect(0, 0, 1, 1);
-            dots[data.dot_id] = p;
+            dots[data.id] = p;
             stage.addChild(p);
-            dots[data.dot_id].x = data.x
-            dots[data.dot_id].y = data.y
+            dots[data.id].x = data.x
+            dots[data.id].y = data.y
             stage.update();
-            if(data.dot_id == 2) {
+            if(data.id == 2) {
                 jQuery("#dot_path").text(JSON.stringify(data.path));
             }
-            console.log("Dot added: " + data.dot_id);
+            console.log("Dot added: " + data.id);
         }
 
         function move_dot(data) {
             // TODO: Use world update event system here instead of in-place variable updates. FUNCTIONAL PROGRAMMING! \o/
-            console.log("Moving dot " + data.dot_id + " " + data.path.length);
+            console.log("Moving dot " + data.id + " " + data.path.length);
             if(data.path.length === 0) {
                 return;
             }
@@ -124,12 +124,12 @@
 
             */
 
-            if(typeof dots[data.dot_id] === "undefined"){
+            if(typeof dots[data.id] === "undefined"){
                 true;
             }
             var new_loc = data.path[0];
-            dots[data.dot_id].x = new_loc[0];
-            dots[data.dot_id].y = new_loc[1];
+            dots[data.id].x = new_loc[0];
+            dots[data.id].y = new_loc[1];
             stage.update();
 
             if(data.path.length > 0) {

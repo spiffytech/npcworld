@@ -1,3 +1,4 @@
+import collections
 from filecache import filecache
 from fn import _
 import simplejson as json
@@ -21,56 +22,51 @@ def notify_browser(old_world, new_world, event_params):
 
 @events.event("new_dot")
 def new_dot(old_world, new_world, new_dot):  # TODO: Pass a Dot object here instead of a dict
-    return attr_update(new_world, dots=_ + (new_dot,))
+    return attr_update(new_world, entities=_ + (new_dot,))
 
 @events.event("movement")
 def move_dot(old_world, new_world, payload):
     print payload
-    print new_world.dots
+    print new_world.entities
+    print payload["path"]
+    assert isinstance(payload["path"], collections.Iterable)
+    assert len(payload["path"][0]) == 2
+    #import pdb; pdb.set_trace()
     return attr_update(
         new_world,
-        dots = lambda dots: utils.replace_true(
-            new_val_fn = lambda dot: dict(dot, path=payload["path"]),
-            cmp = lambda dot: dot["dot_id"] == payload["dot_id"],
-            seq = dots
+        entities = lambda entities: utils.replace_true(
+            new_val_fn = lambda dot: attr_update(dot, path=payload["path"]),
+            cmp = lambda dot: dot.id == payload["id"],
+            seq = entities
         )
     )
 
-@filecache(60*60)
 def plot_path(*args, **kwargs):
     return find_path(*args, **kwargs)
 
 def dot_ai(worldstate):
     events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
-    if worldstate.ticks == 0:  # Second event - move dots
-        # TODO: Update this such that it always /looks/ like it's going in the optimal path, even if it actually is
-        # E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
-        def cost_func(u, v, e, prev_e):
-            grid = worldstate.grid
-            cell_type = grid[v[0]][v[1]]
-            return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
+    # TODO: Update this such that it /looks/ like it's going in the optimal path. Right now paths generated are obviously suboptimal.
+    # Appearances also matter. E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
+    def cost_func(u, v, e, prev_e):
+        grid = worldstate.grid
+        cell_type = grid[v[0]][v[1]]
+        return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
 
-        graph = worldstate.graph
-        path1 = find_path(graph, (10, 10), (159, 1), cost_func=cost_func)
-        path2 = find_path(graph, (20, 20), (139, 100), cost_func=cost_func)
+    if worldstate.ticks == 0:  # Second event - move dots
         dots = [
-            {
-                "dot_id": 1,
-                "color": "red",
-                "x": 10,
-                "y": 10,
-                "dest": (29, 1),
-                "path": path1[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": path1[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            }, {
-                "dot_id": 2,
-                "color": "blue",
-                "x": 20,
-                "y": 20,
-                "dest": (30, 1),
-                "path": path2[0],  # [0] is path, [1] is cost for each traversal, [2] is total cost
-                "costs": path2[1]  # [0] is path, [1] is cost for each traversal, [2] is total cost
-            }
+            utils.Dot(
+                id = 1,
+                color = "red",
+                pos = {"x": 10, "y": 10},
+                dest = (29, 1),
+            ),
+            utils.Dot(
+                id = 2,
+                color = "blue",
+                pos = {"x": 20, "y": 20},
+                dest = (30, 1),
+            )
         ]
         for dot in dots:
             events.append(dict(event_type="new_dot", payload=dot))
@@ -79,13 +75,24 @@ def dot_ai(worldstate):
         return events
 
     if worldstate.ticks == 1:  # Second event - move dots
-        for dot in worldstate.dots:
+        graph = worldstate.graph
+        path1 = plot_path(graph, (10, 10), (159, 1), cost_func=cost_func)
+        path2 = plot_path(graph, (20, 20), (139, 100), cost_func=cost_func)
+        for dot in worldstate.entities:
             browser_payload = dict(
-                dot_id = dot["dot_id"],
-                path = dot["path"],
-                speed = .1  # sleep time. TODO: Replace this with fixed timestapms instead of sleep durations.
+                id = dot.id,
+                path = path1[0] if dot.id == 1 else path2[0],
+                speed = dot.speed
             )
             events.append(dict(event_type="movement", payload=browser_payload))
+
+
+            #################################33
+            # After making entities work (returning a valid path for 'movement' events)
+            # perhaps alter events so handlers accept **kwargs instead of a payload dict?
+            #################################33
+
+
 
             event_payload = dict(
                 event_type="movement",
