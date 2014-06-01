@@ -66,8 +66,8 @@ def dot_ai(worldstate):
             )
         ]
         for dot in dots:
-            events.append(dict(event_type="new_dot", payload=dict(new_dot=dot)))
-            events.append(dict(event_type="notify_browser", payload=dict(event_type="new_dot", payload=dot)))
+            events.append(utils.Event(type="new_dot", payload=dict(new_dot=dot)))
+            events.append(utils.Event(type="notify_browser", payload=dict(event_type="new_dot", payload=dot)))
         utils.logger.debug("AI: creating new dots")
         return events
 
@@ -81,13 +81,13 @@ def dot_ai(worldstate):
                 path = path1[0] if dot.id == 1 else path2[0],
                 speed = dot.speed
             )
-            events.append(dict(event_type="movement", payload=browser_payload))
+            events.append(utils.Event(type="movement", payload=browser_payload))
 
             event_payload = dict(
                 event_type="movement",
                 payload=browser_payload
             )
-            events.append(dict(event_type="notify_browser", payload=event_payload))
+            events.append(utils.Event(type="notify_browser", payload=event_payload))
         utils.logger.debug("AI: moving dots")
         return events
     return events

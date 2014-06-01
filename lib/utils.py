@@ -16,6 +16,7 @@ FPS = 10
 
 Worldstate = partial(namedtuple("Worldstate", "entities ticks map"), ticks=0, entities=tuple(), map=None)
 Map = namedtuple("Map", "grid graph")
+Event = namedtuple("Event", "type, payload")
 
 Dot = partial(namedtuple("Dot", "id color pos path speed dest"), speed=.1, path=None, dest=None)  # TODO: Replace speed int with fixed timestamps in update method instead of sleep durations.
 
