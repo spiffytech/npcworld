@@ -46,7 +46,7 @@ def dot_ai(worldstate):
     # TODO: Update this such that it /looks/ like it's going in the optimal path. Right now paths generated are obviously suboptimal.
     # Appearances also matter. E.g., 20,20 -> 139,100 starts with an upward diagonal, even though that /looks like/ it's running away from the target
     def cost_func(u, v, e, prev_e):
-        grid = worldstate.grid
+        grid = worldstate.map.grid
         cell_type = grid[v[0]][v[1]]
         return sys.maxint if cell_type in ["shallow_water", "deep_water"] else 1
 
@@ -72,7 +72,7 @@ def dot_ai(worldstate):
         return events
 
     if worldstate.ticks == 1:  # Second event - move dots
-        graph = worldstate.graph
+        graph = worldstate.map.graph
         path1 = plot_path(graph, (10, 10), (159, 1), cost_func=cost_func)
         path2 = plot_path(graph, (20, 20), (139, 100), cost_func=cost_func)
         for dot in worldstate.entities:

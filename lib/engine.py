@@ -31,12 +31,11 @@ def run_game():
     graph = utils.dpc.get_or_create("graph", lambda: worldmaker.make_graph(grid), 60*60)
     logger.info("Graph made")
 
-    Worldstate = namedtuple("Worldstate", "entities ticks grid graph")
-    worldstate = Worldstate(
-        entities=tuple(),
-        ticks=0,
-        grid=grid,
-        graph=graph,
+    worldstate = utils.Worldstate(
+        map = utils.Map(
+            grid=grid,
+            graph=graph,
+        )
 
         #For event handling, consider having each Event contain an applicator function. That way you don't need global functions available for all events, some specialized logic can just return a specialized applicator function. You can still return globally-available applicators if you want to do something generic. TODO: Figure out how this plays with sorting event handling order.
 
