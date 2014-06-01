@@ -39,7 +39,7 @@ def test_handle_events():
     assert handled == 9  # 1 * 2 * 3 + 3
 
 def test_new_dot_event():
-    world = namedtuple("World", "entities")(entities=tuple())
+    world = utils.Worldstate()
     new_dot = utils.Dot(id=1, color=None, pos=dict(x=0, y=0))
     new_world = ai.new_dot(world, world, new_dot)
     assert new_world.entities[0] == new_dot
