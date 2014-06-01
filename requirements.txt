@@ -6,9 +6,7 @@ dogpile.cache
 gunicorn
 gevent
 pyramid<1.5
-bpython
 pyzmq
-pyzmqrpc
 fn
 dijkstar
 pytest
