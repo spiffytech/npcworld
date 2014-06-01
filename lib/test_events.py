@@ -18,22 +18,25 @@ def test_event():
 
 def test_handle_event():
     @events.event("handler")
-    def handler(old_val, new_val, event):
-        return new_val * event
+    def handler(old_val, new_val, payload):
+        return new_val * payload
 
     handled = events.handle_event(1, 2, dict(event_type="handler", payload=2))
     assert handled == 4
 
 def test_handle_events():
     @events.event("handler")
-    def handler1(old_val, new_val, event):
-        return new_val * event
+    def handler1(old_val, new_val, payload):
+        return new_val * payload
     @events.event("handler")
-    def handler2(old_val, new_val, event):
-        return new_val * event
+    def handler2(old_val, new_val, payload, bonus):
+        return new_val * payload + bonus
 
-    handled = events.handle_events(1, (dict(event_type="handler", payload=2), dict(event_type="handler", payload=2)))
-    assert handled == 4
+    handled = events.handle_events(1, (
+        dict(event_type="handler", payload=dict(payload=2)),
+        dict(event_type="handler", payload=dict(payload=3, bonus=3))
+    ))
+    assert handled == 9  # 1 * 2 * 3 + 3
 
 def test_new_dot_event():
     world = namedtuple("World", "entities")(entities=tuple())
