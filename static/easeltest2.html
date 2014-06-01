@@ -111,25 +111,23 @@
 
         function move_dot(data) {
             // TODO: Use world update event system here instead of in-place variable updates. FUNCTIONAL PROGRAMMING! \o/
-            console.log("Moving dot " + data.id + " " + data.path.length);
+            console.log("Moving dot " + data.dot_id + " " + data.path.length);
             if(data.path.length === 0) {
                 return;
             }
 
             /*
-
             **************************
             * If things blow up here indicating dot 1 is undefined, it's because when refreshing the page, the EventSource doesn't close, so it picks up the new_dot event, /then/ refreshes the page and starts processing new events
             **************************
-
             */
 
-            if(typeof dots[data.id] === "undefined"){
+            if(typeof dots[data.dot_id] === "undefined"){
                 true;
             }
             var new_loc = data.path[0];
-            dots[data.id].x = new_loc[0];
-            dots[data.id].y = new_loc[1];
+            dots[data.dot_id].x = new_loc[0];
+            dots[data.dot_id].y = new_loc[1];
             stage.update();
 
             if(data.path.length > 0) {

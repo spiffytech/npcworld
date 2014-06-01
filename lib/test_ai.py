@@ -9,7 +9,7 @@ def test_notify_browser():
     # Assert it's right after we handle converting from SSE format
 
 def test_move_dot():
-    world = namedtuple("World", "dots")(dots=(utils.Dot(id=1, color=None, pos=dict(x=0,y=0)),))
-    new_world = ai.move_dot(world, world, dot_id=1, path=(0, 1))
+    world = namedtuple("World", "entities")(entities=(utils.Dot(id=1, color=None, pos=dict(x=0,y=0)),))
+    new_world = ai.move_dot(world, world, dot_id=1, path=((0, 1),))
 
-    assert new_world.dots[0].path == (0, 1)
+    assert new_world.entities[0].path == ((0, 1),)

@@ -21,7 +21,7 @@ def test_handle_event():
     def handler(old_val, new_val, payload):
         return new_val * payload
 
-    handled = events.handle_event(1, 2, dict(event_type="handler", payload=2))
+    handled = events.handle_event(1, 2, dict(event_type="handler", payload=dict(payload=2)))
     assert handled == 4
 
 def test_handle_events():
@@ -29,7 +29,7 @@ def test_handle_events():
     def handler1(old_val, new_val, payload):
         return new_val * payload
     @events.event("handler")
-    def handler2(old_val, new_val, payload, bonus):
+    def handler2(old_val, new_val, payload, bonus=0):
         return new_val * payload + bonus
 
     handled = events.handle_events(1, (

@@ -29,7 +29,7 @@ def get_handler(event_name):
 
 def handle_event(old_world, new_world, event):
     handler = get_handler(event["event_type"])
-    return handler(old_world, new_world, event["payload"])
+    return handler(old_world, new_world, **event["payload"])
 
 def handle_events(worldstate, events):
     return reduce(  # Using this closure against worldstate instead of just passing tuple of (old_world, new_world) to reduce() to enforce that a handler can't change old_world
