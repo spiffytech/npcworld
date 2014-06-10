@@ -41,6 +41,19 @@ def move_dot(old_world, new_world, dot_id, path, speed):  # TODO: Set travel spe
 def plot_path(*args, **kwargs):
     return find_path(*args, **kwargs)
 
+def agent_update(worldstate, agent):
+    if len(agent.entities) == 0:
+        new_dot = utils.Dot(
+            id = 1,
+            color = "red",
+            pos = {"x": 10, "y": 10},
+            dest = (29, 1),
+        )
+        return (
+            events.append(utils.Event(type="new_dot", payload=dict(new_dot=new_dot))),
+            events.append(utils.Event(type="notify_browser", payload=dict(event_type="new_dot", payload=new_dot)))
+        )
+
 def dot_ai(worldstate):
     events = []  # TODO: No mutable state. This is just a dummy experimental function, anyway.
     # TODO: Update this such that it /looks/ like it's going in the optimal path. Right now paths generated are obviously suboptimal.

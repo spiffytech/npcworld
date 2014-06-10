@@ -32,6 +32,10 @@ def run_game():
     logger.info("Graph made")
 
     worldstate = utils.Worldstate(
+        agents = (
+            utils.Agent(agent_id=uuid.uuid4(), color="red"),
+            utils.Agent(agent_id=uuid.uuid4(), color="blue"),
+        ),
         map = utils.Map(
             grid=grid,
             graph=graph,
