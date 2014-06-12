@@ -1,3 +1,36 @@
+open SimplexNoise 
+
+module Simplex =
+    let makeNoise octaves persistance scale x y z =
+        let total = float32 0.
+        let frequency = float32 scale
+        let amplitude = float32 1.
+        let maxAmplitude = float32 0.
+
+        let rec getVal total octaves frequency amplitude maxAmplitude = 
+            let noiseVal = SimplexNoise.Noise.Generate (float32 x*frequency, float32 y*frequency, float32 z*frequency)
+            let amplifiedNoise = noiseVal * amplitude
+            let total' = total + amplifiedNoise
+            printfn "noiseVal: %A" noiseVal
+            printfn "amplifiedNoise: %A" total
+            printfn "maxAmplitude: %A" maxAmplitude
+            match octaves with
+            | 1 -> total / maxAmplitude
+            | _ -> 
+                let octaves' = octaves - 1
+                let frequency' = frequency * float32 2
+                let maxAmplitude' = maxAmplitude + float32 amplitude
+                let amplitude' = amplitude * float32 persistance
+                getVal total' octaves' frequency' amplitude' maxAmplitude'
+        getVal total octaves frequency amplitude maxAmplitude
+
+SimplexNoise.Noise.Generate (float32 2, float32 1, float32 5)
+|> printfn "%A"
+
+Simplex.makeNoise 9 0.004 2 2 1 5
+|> printfn "%A"
+
+
 module Utils =
     let FPS = 10
 
@@ -57,8 +90,6 @@ let highestVariance =
     |> List.maxBy (fun x -> abs(float x.[1] - float x.[4]))
     |> (fun x -> x.[0])
 
-printfn "%s" highestVariance
-
 (*
 open System.Net
 let asynctask ( url:string ) = 
@@ -68,5 +99,3 @@ let asynctask ( url:string ) =
             use streamreader = new System.IO.StreamReader(stream)
             return streamreader.ReadToEnd() }
 *)
-
-Utils.frames_to_secs 1 |> printfn "%f" 
