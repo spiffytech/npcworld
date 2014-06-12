@@ -2,13 +2,13 @@ open SimplexNoise
 
 module Simplex =
     let makeNoise octaves persistance scale x y z =
-        let total = float32 0.
-        let frequency = float32 scale
-        let amplitude = float32 1.
-        let maxAmplitude = float32 0.
+        let total = 0.
+        let frequency = scale
+        let amplitude = 1.
+        let maxAmplitude = 0.
 
         let rec getVal total octaves frequency amplitude maxAmplitude = 
-            let noiseVal = SimplexNoise.Noise.Generate (float32 x*frequency, float32 y*frequency, float32 z*frequency)
+            let noiseVal = SimplexNoise.Noise.Generate (x*frequency, y*frequency, z*frequency)
             let amplifiedNoise = noiseVal * amplitude
             let total' = total + amplifiedNoise
             printfn "noiseVal: %A" noiseVal
@@ -18,16 +18,16 @@ module Simplex =
             | 1 -> total / maxAmplitude
             | _ -> 
                 let octaves' = octaves - 1
-                let frequency' = frequency * float32 2
-                let maxAmplitude' = maxAmplitude + float32 amplitude
-                let amplitude' = amplitude * float32 persistance
+                let frequency' = frequency * 2.
+                let maxAmplitude' = maxAmplitude + amplitude
+                let amplitude' = amplitude * persistance
                 getVal total' octaves' frequency' amplitude' maxAmplitude'
         getVal total octaves frequency amplitude maxAmplitude
 
-SimplexNoise.Noise.Generate (float32 2, float32 1, float32 5)
+SimplexNoise.Noise.Generate (2., 1., 5.)
 |> printfn "%A"
 
-Simplex.makeNoise 9 0.004 2 2 1 5
+Simplex.makeNoise 9 0.004 2. 2. 1. 5.
 |> printfn "%A"
 
 
