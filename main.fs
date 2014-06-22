@@ -1,6 +1,38 @@
 open SimplexNoise 
 
+let (@@) fn x = fn x
+
+let debugAgent = MailboxProcessor.Start(fun inbox ->
+    let rec messageLoop =
+        async {
+            let! msg = inbox.Receive()
+            printfn "%s" msg
+            return! messageLoop
+        }
+
+    messageLoop
+)
+
 module Simplex =
+    let smoothness = 0.004 
+
+    type Terrain =
+        | DeepWater
+        | ShallowWater
+        | SubtropicalDesert
+        | Grassland
+        | TropicalSeasonalForest
+        | TropicalRainforest
+        | TemperateDesert
+        | TemperateDeciduousForest
+        | TemperateRainforest
+        | Shrubland
+        | Taiga
+        | Scorched
+        | Bare
+        | Tundra
+        | Snow
+
     let makeNoise octaves persistance scale x y z =
         let total = 0.
         let frequency = scale
@@ -8,7 +40,7 @@ module Simplex =
         let maxAmplitude = 0.
 
         let rec getVal total octaves frequency amplitude maxAmplitude = 
-            let noiseVal = SimplexNoise.Noise.Generate (x*frequency, y*frequency, z*frequency)
+            let noiseVal = SimplexNoise.Noise.Generate (float x*frequency, float y*frequency, float z*frequency)
             let amplifiedNoise = noiseVal * amplitude
             let total' = total + amplifiedNoise
             (*
@@ -26,23 +58,111 @@ module Simplex =
                 getVal total' octaves' frequency' amplitude' maxAmplitude'
         getVal total octaves frequency amplitude maxAmplitude
 
-(*
-SimplexNoise.Noise.Generate (2., 1., 5.)
-|> printfn "%A"
+    let makeMapNoise simplexFn max_x max_y =
+        let getNoise x y z =
+           simplexFn (float x*smoothness) (float y*smoothness) (float z*smoothness)
 
-Simplex.makeNoise 9 0.004 2. 2. 1. 5.
-|> printfn "%A"
-*)
+        [0..max_x]
+            |> Array.ofList
+            |> Array.Parallel.map (fun x ->
+                [0..max_y]
+                    |> Array.ofList
+                    |> Array.Parallel.map (fun y -> getNoise x y 0.)
+                    |> List.ofArray
+            )
+            |> List.ofArray
 
-    let makeMapNoise max_x max_y =
-        [for x in 0..max_x do
-                for y in 0..max_y do
-                    yield [|x;y;0|]
-        ]
-            |> List.map (fun r -> async { return SimplexNoise.Noise.Generate (float r.[0], float r.[1], float r.[2])} )
-            |> Async.Parallel
-            |> Async.RunSynchronously
 
+    /// <summary>Takes a Simplex noise value and and a list of proportions
+    /// and puts it into one of the buckets. Each number in 'buckets' is the
+    /// proportion of the total value range that bucket occupies.</summary>
+    let bucket buckets v =
+        // Upper/lower values v can take
+        let lowerBound = -1.
+        let upperBound = 1.
+
+        // Critical Chickens
+        match (lowerBound, upperBound) with
+        | (_, upperBound) when v > upperBound -> failwith @@ sprintf "Cannot bucket something greater than %f" upperBound
+        | (lowerBound, _) when v < lowerBound -> failwith @@ sprintf "Cannot bucket something less than %f" lowerBound
+        | (lowerBound, upperBound) when upperBound < lowerBound -> failwith @@ "Upper bound must be greater than lower bound"
+        | _ -> ()
+
+        let bucketSize = (upperBound - lowerBound) / (List.sum buckets)
+        // Calculate the ceiling values for all buckets
+        let bucketCeils =
+            List.fold(fun acc elem ->  // Create list with minimum value for each bucket
+                let elemSize = elem * bucketSize
+                match acc with
+                | x :: xs -> [x + elemSize] @ acc
+                | [] -> [lowerBound + elemSize]  // Smallest bucket must have a ceiling equal to the smallest bucket
+            ) [] buckets
+            |> (fun l -> [upperBound] @ (List.tail l))  // Replace upper ceiling with upper bound
+            |> List.rev
+
+        //debugAgent.Post @@ sprintf "buckets: %A,\t bucketCeils: %A,\tv: %A,\tbucketSize: %A" buckets bucketCeils v bucketSize
+        bucketCeils
+            |> List.findIndex (fun bucketCeil -> v <= bucketCeil)  // Find buckets where our value is greater than the bottom of the bucket
+
+    let private assignWater simplexFn x y =
+        // Map our X and Y to different values, so we don't
+        // get the same value as the existing cell
+        let x' = ((float x ** 2.) / 180.) * 0.01
+        let y' = ((float y ** 2.) / 180.) * 0.01
+        let z = 0.
+        simplexFn x' y' z
+            |> bucket [20.; 5.; 25.]
+            |> (fun seg ->
+                match seg with
+                | 0 -> Some DeepWater
+                | 1 -> Some ShallowWater
+                | 2 -> None
+                | _ -> failwith @@ sprintf "Invalid bucket: %i" seg
+            )
+
+    let private assignLand simplexValue =
+        let elevation = bucket [15.; 8.; 10.; 8.] simplexValue
+        let moisture = bucket [15.; 20.; 8.; 10.; 20.; 10.] simplexValue
+        // TODO: This makes six buckets. Handle all six.
+
+        match (elevation, moisture) with
+        | (0, 0) -> SubtropicalDesert
+        | (0, 1) -> Grassland
+        | (0, 2) | (0, 3) -> TropicalSeasonalForest
+        | (0, 4) | (0, 5) -> TropicalRainforest
+
+        | (1, 0) -> TemperateDesert
+        | (1, 1) | (1, 2) -> Grassland
+        | (1, 3) | (1, 4) -> TemperateDeciduousForest
+        | (1, 5) -> TemperateRainforest
+
+        | (2, 0) | (2, 1) -> TemperateDesert
+        | (2, 2) | (2, 3) -> Shrubland
+        | (2, 4) | (2, 5) -> Taiga
+        | (3, 0) -> Scorched
+        | (3, 1) -> Bare
+        | (3, 2) -> Tundra
+        | (3, 3) | (3, 4) | (3, 5) -> Snow
+
+        | _ -> failwith "Invalid elevation/moisture combination"
+
+    /// <summary>Accepts a 2D map and assigns each cell a terrain type</summary>
+    let assignTerrain simplexFn map =
+        map
+            |> Array.ofList
+            |> Array.Parallel.mapi (fun x row ->
+                row
+                    |> Array.ofList
+                    |> Array.Parallel.mapi (fun y cellValue ->
+                        // Decide whether this should be water or land
+                        let shouldBeWater = assignWater simplexFn x y
+                        match shouldBeWater with
+                        | Some terrain -> terrain
+                        | None -> assignLand cellValue
+                    )
+                    |> List.ofArray
+            )
+            |> List.ofArray
 
 module Utils =
     let FPS = 10
@@ -64,54 +184,15 @@ module Worldmaker =
     let max_x = 1000
     let max_y = 600
 
-    let octaves = 0
+    let octaves = 9
     let persistence = 0.5
-    let scale = 2
+    let scale = 2.
     let smoothness = 0.004
 
-//"Date,Open,High,Low,Close,Volume,Adj Close"
-let stockData = [ 
-    "2012-03-30,32.40,32.41,32.04,32.26,31749400,32.26";
-    "2012-03-29,32.06,32.19,31.81,32.12,37038500,32.12";
-    "2012-03-28,32.52,32.70,32.04,32.19,41344800,32.19";
-    "2012-03-27,32.65,32.70,32.40,32.52,36274900,32.52";
-    "2012-03-26,32.19,32.61,32.15,32.59,36758300,32.59";
-    "2012-03-23,32.10,32.11,31.72,32.01,35912200,32.01";
-    "2012-03-22,31.81,32.09,31.79,32.00,31749500,32.00";
-    "2012-03-21,31.96,32.15,31.82,31.91,37928600,31.91";
-    "2012-03-20,32.10,32.15,31.74,31.99,41566800,31.99";
-    "2012-03-19,32.54,32.61,32.15,32.20,44789200,32.20";
-    "2012-03-16,32.91,32.95,32.50,32.60,65626400,32.60";
-    "2012-03-15,32.79,32.94,32.58,32.85,49068300,32.85";
-    "2012-03-14,32.53,32.88,32.49,32.77,41986900,32.77";
-    "2012-03-13,32.24,32.69,32.15,32.67,48951700,32.67";
-    "2012-03-12,31.97,32.20,31.82,32.04,34073600,32.04";
-    "2012-03-09,32.10,32.16,31.92,31.99,34628400,31.99";
-    "2012-03-08,32.04,32.21,31.90,32.01,36747400,32.01";
-    "2012-03-07,31.67,31.92,31.53,31.84,34340400,31.84";
-    "2012-03-06,31.54,31.98,31.49,31.56,51932900,31.56";
-    "2012-03-05,32.01,32.05,31.62,31.80,45240000,31.80";
-    "2012-03-02,32.31,32.44,32.00,32.08,47314200,32.08";
-    "2012-03-01,31.93,32.39,31.85,32.29,77344100,32.29";
-    "2012-02-29,31.89,32.00,31.61,31.74,59323600,31.74"; ]
-
-let splitCommas (x:string) = x.Split([|','|])
-
-let highestVariance =
-    stockData
-    |> List.map splitCommas
-    |> List.maxBy (fun x -> abs(float x.[1] - float x.[4]))
-    |> (fun x -> x.[0])
-
-(*
-open System.Net
-let asynctask ( url:string ) = 
-    async { let req = WebRequest.Create(url)
-            let! response = req.GetResponseAsync()
-            use stream = response.GetResponseStream()
-            use streamreader = new System.IO.StreamReader(stream)
-            return streamreader.ReadToEnd() }
-*)
-
-Simplex.makeMapNoise 1100 600
+let octaves = 9  // Higher than 10 makes no difference
+let persistance = 0.5
+let scale = 2.
+let simplexFn = Simplex.makeNoise octaves persistance scale
+Simplex.makeMapNoise simplexFn 1100 600
+    |> Simplex.assignTerrain simplexFn
     |> printfn "%A"

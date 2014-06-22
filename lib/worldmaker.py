@@ -155,8 +155,7 @@ def make_terrain(perlin, x, y, f):
         (3,5): "snow",
     }
 
-    moisture = f(x=x, y=y, z=2)
-
+    #moisture = f(x=x, y=y, z=2)
     #elevation, moisture = sine_interpolation(-1, 1, elevation), sine_interpolation(-1, 1, moisture)
 
     ek = segmentize(perlin, -1, 1,  [15, 8, 10, 8])
