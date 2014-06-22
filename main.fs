@@ -11,9 +11,11 @@ module Simplex =
             let noiseVal = SimplexNoise.Noise.Generate (x*frequency, y*frequency, z*frequency)
             let amplifiedNoise = noiseVal * amplitude
             let total' = total + amplifiedNoise
+            (*
             printfn "noiseVal: %A" noiseVal
             printfn "amplifiedNoise: %A" total
             printfn "maxAmplitude: %A" maxAmplitude
+            *)
             match octaves with
             | 1 -> total / maxAmplitude
             | _ -> 
@@ -24,11 +26,22 @@ module Simplex =
                 getVal total' octaves' frequency' amplitude' maxAmplitude'
         getVal total octaves frequency amplitude maxAmplitude
 
+(*
 SimplexNoise.Noise.Generate (2., 1., 5.)
 |> printfn "%A"
 
 Simplex.makeNoise 9 0.004 2. 2. 1. 5.
 |> printfn "%A"
+*)
+
+    let makeMapNoise max_x max_y =
+        [for x in 0..max_x do
+                for y in 0..max_y do
+                    yield [|x;y;0|]
+        ]
+            |> List.map (fun r -> async { return SimplexNoise.Noise.Generate (float r.[0], float r.[1], float r.[2])} )
+            |> Async.Parallel
+            |> Async.RunSynchronously
 
 
 module Utils =
@@ -99,3 +112,6 @@ let asynctask ( url:string ) =
             use streamreader = new System.IO.StreamReader(stream)
             return streamreader.ReadToEnd() }
 *)
+
+Simplex.makeMapNoise 1100 600
+    |> printfn "%A"
