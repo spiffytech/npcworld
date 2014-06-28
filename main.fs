@@ -14,25 +14,6 @@ let debugAgent = MailboxProcessor.Start(fun inbox ->
 )
 
 module Simplex =
-    let smoothness = 0.004 
-
-    type Terrain =
-        | DeepWater
-        | ShallowWater
-        | SubtropicalDesert
-        | Grassland
-        | TropicalSeasonalForest
-        | TropicalRainforest
-        | TemperateDesert
-        | TemperateDeciduousForest
-        | TemperateRainforest
-        | Shrubland
-        | Taiga
-        | Scorched
-        | Bare
-        | Tundra
-        | Snow
-
     let makeNoise octaves persistance scale x y z =
         let total = 0.
         let frequency = scale
@@ -58,7 +39,7 @@ module Simplex =
                 getVal total' octaves' frequency' amplitude' maxAmplitude'
         getVal total octaves frequency amplitude maxAmplitude
 
-    let makeMapNoise simplexFn max_x max_y =
+    let makeMapNoise simplexFn smoothness max_x max_y =
         let getNoise x y z =
            simplexFn (float x*smoothness) (float y*smoothness) (float z*smoothness)
 
@@ -72,6 +53,26 @@ module Simplex =
             )
             |> List.ofArray
 
+module Worldmaker =
+    type Terrain =
+        | DeepWater
+        | ShallowWater
+        | SubtropicalDesert
+        | Grassland
+        | TropicalSeasonalForest
+        | TropicalRainforest
+        | TemperateDesert
+        | TemperateDeciduousForest
+        | TemperateRainforest
+        | Shrubland
+        | Taiga
+        | Scorched
+        | Bare
+        | Tundra
+        | Snow
+
+    let max_x = 1000
+    let max_y = 600
 
     /// <summary>Takes a Simplex noise value and and a list of proportions
     /// and puts it into one of the buckets. Each number in 'buckets' is the
@@ -179,20 +180,11 @@ module Utils =
     let frames_to_secs (frames:int) = (double frames) / (double FPS)
     let secs_to_frames secs = secs * FPS
 
-
-module Worldmaker =
-    let max_x = 1000
-    let max_y = 600
-
-    let octaves = 9
-    let persistence = 0.5
-    let scale = 2.
-    let smoothness = 0.004
-
 let octaves = 9  // Higher than 10 makes no difference
 let persistance = 0.5
 let scale = 2.
+let smoothness = 0.004
 let simplexFn = Simplex.makeNoise octaves persistance scale
-Simplex.makeMapNoise simplexFn 1100 600
-    |> Simplex.assignTerrain simplexFn
+Simplex.makeMapNoise simplexFn smoothness 1100 600
+    |> Worldmaker.assignTerrain simplexFn
     |> printfn "%A"
