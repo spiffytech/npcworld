@@ -57,6 +57,7 @@ module Worldmaker =
     type Terrain =
         | DeepWater
         | ShallowWater
+
         | SubtropicalDesert
         | Grassland
         | TropicalSeasonalForest
@@ -74,45 +75,40 @@ module Worldmaker =
     let max_x = 1000
     let max_y = 600
 
-    /// <summary>Takes a Simplex noise value and and a list of proportions
-    /// and puts it into one of the buckets. Each number in 'buckets' is the
-    /// proportion of the total value range that bucket occupies.</summary>
-    let bucket buckets v =
-        // Upper/lower values v can take
-        let lowerBound = -1.
-        let upperBound = 1.
-
+    /// <summary>Takes upper/lower value boundaries and bucket proportions and
+    /// returns ranges of values each bucket can contain</summary>
+    let makeBuckets lowerBound upperBound buckets =
         // Critical Chickens
         match (lowerBound, upperBound) with
-        | (_, upperBound) when v > upperBound -> failwith @@ sprintf "Cannot bucket something greater than %f" upperBound
-        | (lowerBound, _) when v < lowerBound -> failwith @@ sprintf "Cannot bucket something less than %f" lowerBound
         | (lowerBound, upperBound) when upperBound < lowerBound -> failwith @@ "Upper bound must be greater than lower bound"
         | _ -> ()
 
         let bucketSize = (upperBound - lowerBound) / (List.sum buckets)
         // Calculate the ceiling values for all buckets
-        let bucketCeils =
-            List.fold(fun acc elem ->  // Create list with minimum value for each bucket
-                let elemSize = elem * bucketSize
-                match acc with
-                | x :: xs -> [x + elemSize] @ acc
-                | [] -> [lowerBound + elemSize]  // Smallest bucket must have a ceiling equal to the smallest bucket
-            ) [] buckets
+        List.fold(fun acc elem ->  // Create list with minimum value for each bucket
+            let elemSize = elem * bucketSize
+            match acc with
+            | x :: xs -> [x + elemSize] @ acc
+            | [] -> [lowerBound + elemSize]  // Smallest bucket must have a ceiling equal to the smallest bucket
+        ) [] buckets
             |> (fun l -> [upperBound] @ (List.tail l))  // Replace upper ceiling with upper bound
             |> List.rev
 
+    /// <summary>Takes bucket ceilings and a value and returns the bucket the
+    /// value falls into</summary>
+    let bucketize buckets v =
         //debugAgent.Post @@ sprintf "buckets: %A,\t bucketCeils: %A,\tv: %A,\tbucketSize: %A" buckets bucketCeils v bucketSize
-        bucketCeils
+        buckets
             |> List.findIndex (fun bucketCeil -> v <= bucketCeil)  // Find buckets where our value is greater than the bottom of the bucket
 
-    let private assignWater simplexFn x y =
+    let private assignWater waterBuckets simplexFn x y =
         // Map our X and Y to different values, so we don't
         // get the same value as the existing cell
         let x' = ((float x ** 2.) / 180.) * 0.01
         let y' = ((float y ** 2.) / 180.) * 0.01
         let z = 0.
         simplexFn x' y' z
-            |> bucket [20.; 5.; 25.]
+            |> bucketize waterBuckets
             |> (fun seg ->
                 match seg with
                 | 0 -> Some DeepWater
@@ -121,10 +117,9 @@ module Worldmaker =
                 | _ -> failwith @@ sprintf "Invalid bucket: %i" seg
             )
 
-    let private assignLand simplexValue =
-        let elevation = bucket [15.; 8.; 10.; 8.] simplexValue
-        let moisture = bucket [15.; 20.; 8.; 10.; 20.; 10.] simplexValue
-        // TODO: This makes six buckets. Handle all six.
+    let private assignLand elevationBuckets moistureBuckets simplexValue =
+        let elevation = bucketize elevationBuckets simplexValue
+        let moisture = bucketize moistureBuckets simplexValue
 
         match (elevation, moisture) with
         | (0, 0) -> SubtropicalDesert
@@ -149,6 +144,12 @@ module Worldmaker =
 
     /// <summary>Accepts a 2D map and assigns each cell a terrain type</summary>
     let assignTerrain simplexFn map =
+        let makeBuckets' = makeBuckets -1. 1.
+
+        let waterBuckets = makeBuckets' [20.; 5.; 25.]
+        let elevationBuckets = makeBuckets' [15.; 8.; 10.; 8.]
+        let moistureBuckets = makeBuckets' [15.; 20.; 8.; 10.; 20.; 10.]
+
         map
             |> Array.ofList
             |> Array.Parallel.mapi (fun x row ->
@@ -156,10 +157,10 @@ module Worldmaker =
                     |> Array.ofList
                     |> Array.Parallel.mapi (fun y cellValue ->
                         // Decide whether this should be water or land
-                        let shouldBeWater = assignWater simplexFn x y
+                        let shouldBeWater = assignWater waterBuckets simplexFn x y
                         match shouldBeWater with
                         | Some terrain -> terrain
-                        | None -> assignLand cellValue
+                        | None -> assignLand elevationBuckets moistureBuckets cellValue
                     )
                     |> List.ofArray
             )
