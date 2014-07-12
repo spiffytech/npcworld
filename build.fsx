@@ -11,7 +11,7 @@ Target "Clean" (fun _ ->
 
 // Default target
 Target "Default" (fun _ ->
-    trace "Hello World from FAKE"
+    //trace "Hello World from FAKE"  // How to print debug output
     ["main.fs"]
     |> Fsc (fun parameters ->
         {parameters with References = ["packages/simplexnoise_1_01/SimplexNoise/bin/Debug/SimplexNoise.dll"]}

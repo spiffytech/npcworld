@@ -72,6 +72,8 @@ module Worldmaker =
         | Tundra
         | Snow
 
+    type Map = Terrain list list
+
     let max_x = 1000
     let max_y = 600
 
@@ -88,7 +90,7 @@ module Worldmaker =
         List.fold(fun acc elem ->  // Create list with minimum value for each bucket
             let elemSize = elem * bucketSize
             match acc with
-            | x :: xs -> [x + elemSize] @ acc
+            | x :: _ -> [x + elemSize] @ acc
             | [] -> [lowerBound + elemSize]  // Smallest bucket must have a ceiling equal to the smallest bucket
         ) [] buckets
             |> (fun l -> [upperBound] @ (List.tail l))  // Replace upper ceiling with upper bound
@@ -160,7 +162,7 @@ module Worldmaker =
                         let shouldBeWater = assignWater waterBuckets simplexFn x y
                         match shouldBeWater with
                         | Some terrain -> terrain
-                        | None -> assignLand elevationBuckets moistureBuckets cellValue
+                        | None -> assignLand elevationBuckets moistureBuckets cellValue  // Decide what kind of land this should be
                     )
                     |> List.ofArray
             )
@@ -169,23 +171,50 @@ module Worldmaker =
 module Utils =
     let FPS = 10
 
-    type color = 
-        | Red
-        | Blue
-
-    type agent_id = string
-    type entity_id = string
-    type entity = {entity_id:entity_id; owner_id:agent_id; pos:int * int; speed:int}
-    type agent = {agent_id:agent_id; color:color; entities: list<entity>}
-
     let frames_to_secs (frames:int) = (double frames) / (double FPS)
     let secs_to_frames secs = secs * FPS
 
-let octaves = 9  // Higher than 10 makes no difference
-let persistance = 0.5
-let scale = 2.
-let smoothness = 0.004
-let simplexFn = Simplex.makeNoise octaves persistance scale
-Simplex.makeMapNoise simplexFn smoothness 1100 600
-    |> Worldmaker.assignTerrain simplexFn
-    |> printfn "%A"
+    let makeUUID () =
+        System.Guid.NewGuid().ToString()
+
+module Entities =
+    type ID = | ID of string
+    type OwnerID = | OwnerID of string
+
+    type Dot = {id:ID; owner: OwnerID; pos:(float * float); speed:float}
+
+    type Entity =
+        | Dot
+
+module Agents =
+    type Color =
+        | Red
+        | Blue
+
+    type Agent = {id:Entities.OwnerID; entities:Entities.Entity list; color:Color}
+
+    let makeOwnerID () =
+        Entities.OwnerID @@ Utils.makeUUID ()
+
+module Engine =
+    type Worldstate = {ticks:int; agents:Agents.Agent list; map:Worldmaker.Map}
+
+    let initAgents () =
+        [
+            {Agents.Agent.id=Agents.makeOwnerID (); Agents.Agent.entities=[]; Agents.Agent.color=Agents.Color.Red}
+            {Agents.Agent.id=Agents.makeOwnerID (); Agents.Agent.entities=[]; Agents.Agent.color=Agents.Color.Blue}
+        ]
+
+    let run () =
+        let octaves = 9  // Higher than 10 makes no difference
+        let persistance = 0.5
+        let scale = 2.
+        let smoothness = 0.004
+        let simplexFn = Simplex.makeNoise octaves persistance scale
+        Simplex.makeMapNoise simplexFn smoothness 1100 600
+            |> Worldmaker.assignTerrain simplexFn
+            |> printfn "%A"
+
+        printfn "%A" @@ initAgents ()
+
+Engine.run ()
