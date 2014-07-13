@@ -1,3 +1,6 @@
+#nowarn "21"  // Warning that the compiler can't check the recursive mailbox processor object
+#nowarn "40"  // Also warning that the compiler can't check the recursive mailbox processor object
+
 open SimplexNoise 
 
 let (@@) fn x = fn x
@@ -12,6 +15,47 @@ let debugAgent = MailboxProcessor.Start(fun inbox ->
 
     messageLoop
 )
+
+[<AutoOpen>]
+module DomainTypes =
+    type Terrain =
+        | DeepWater
+        | ShallowWater
+
+        | SubtropicalDesert
+        | Grassland
+        | TropicalSeasonalForest
+        | TropicalRainforest
+        | TemperateDesert
+        | TemperateDeciduousForest
+        | TemperateRainforest
+        | Shrubland
+        | Taiga
+        | Scorched
+        | Bare
+        | Tundra
+        | Snow
+
+    type Map = Terrain list list
+
+    // Entities
+    type ID = | ID of string
+    type OwnerID = | OwnerID of string
+
+    type Dot = {id:ID; owner:OwnerID; pos:(float * float); speed:float}
+    type SomethingElse = {id:ID; owner:OwnerID; pos:(float * float); speed:float}
+
+    type Entity =
+        | EntityDot of Dot
+        | EntitySomethingElse of SomethingElse
+
+    type Color =
+        | Red
+        | Blue
+
+    type Agent = {id:OwnerID; color:Color}
+
+    type World = {ticks:int; agents:Agent list; map:Map; entities:Entity list;}
 
 module Simplex =
     let makeNoise octaves persistance scale x y z =
@@ -54,26 +98,6 @@ module Simplex =
             |> List.ofArray
 
 module Worldmaker =
-    type Terrain =
-        | DeepWater
-        | ShallowWater
-
-        | SubtropicalDesert
-        | Grassland
-        | TropicalSeasonalForest
-        | TropicalRainforest
-        | TemperateDesert
-        | TemperateDeciduousForest
-        | TemperateRainforest
-        | Shrubland
-        | Taiga
-        | Scorched
-        | Bare
-        | Tundra
-        | Snow
-
-    type Map = Terrain list list
-
     let max_x = 1000
     let max_y = 600
 
@@ -173,48 +197,90 @@ module Utils =
 
     let frames_to_secs (frames:int) = (double frames) / (double FPS)
     let secs_to_frames secs = secs * FPS
+    let secs_to_ms secs = int @@ secs * 1000.
 
     let makeUUID () =
-        System.Guid.NewGuid().ToString()
+        let guid = System.Guid.NewGuid()
+        guid.ToString()
 
-module Entities =
-    type ID = | ID of string
-    type OwnerID = | OwnerID of string
+    let updateListAt index newVal list_ =
+        list_
+            |> List.mapi (fun i el ->
+                match i with
+                | index -> newVal
+                | _ -> el
+            )
 
-    type Dot = {id:ID; owner: OwnerID; pos:(float * float); speed:float}
-
-    type Entity =
-        | Dot
+    let makeWorldUpdate f =
+        [Some f]
 
 module Agents =
-    type Color =
-        | Red
-        | Blue
-
-    type Agent = {id:Entities.OwnerID; entities:Entities.Entity list; color:Color}
-
     let makeOwnerID () =
-        Entities.OwnerID @@ Utils.makeUUID ()
+        OwnerID @@ Utils.makeUUID ()
+
+    let isMine agent elem =
+        match elem with
+        | EntityDot d -> d.owner = agent.id
+        | EntitySomethingElse s -> s.owner = agent.id
+
+    let hasEntities agent world =
+        List.exists (isMine agent) world.entities
+
+    let makeDecision world agent =
+        match hasEntities agent world with
+        | false ->
+            Utils.makeWorldUpdate (fun newWorld ->
+                printfn "Creating new entity"
+                {
+                    newWorld with
+                        entities =
+                            newWorld.entities @ [
+                                EntityDot {
+                                    Dot.id=ID (Utils.makeUUID ());
+                                    owner=agent.id;
+                                    pos=(0.,0.); speed=1.
+                                }
+                            ]
+                }
+            )
+        | true -> [None]
 
 module Engine =
-    type Worldstate = {ticks:int; agents:Agents.Agent list; map:Worldmaker.Map}
-
     let initAgents () =
         [
-            {Agents.Agent.id=Agents.makeOwnerID (); Agents.Agent.entities=[]; Agents.Agent.color=Agents.Color.Red}
-            {Agents.Agent.id=Agents.makeOwnerID (); Agents.Agent.entities=[]; Agents.Agent.color=Agents.Color.Blue}
+            {Agent.id=Agents.makeOwnerID (); color=Color.Red}
         ]
 
-    let run () =
+    let makeGame () =
         let octaves = 9  // Higher than 10 makes no difference
         let persistance = 0.5
         let scale = 2.
         let smoothness = 0.004
+        debugAgent.Post @@ "Making map"
         let simplexFn = Simplex.makeNoise octaves persistance scale
-        Simplex.makeMapNoise simplexFn smoothness 1100 600
+        let map =
+            Simplex.makeMapNoise simplexFn smoothness 1100 600
             |> Worldmaker.assignTerrain simplexFn
-            |> printfn "%A"
+        debugAgent.Post @@ "Map made"
 
-        printfn "%A" @@ initAgents ()
+        let agents = initAgents ()
+        let world = {ticks=0; agents=agents; map=map; entities=[]}
+        world
 
-Engine.run ()
+    let rec run world =
+        printfn "%A" world.ticks
+        let updates = Agents.makeDecision world world.agents.[0]
+        let world' =
+            updates
+                |> List.fold (fun world update ->
+                    match update with
+                    | Some update -> update world
+                    | None -> world
+                ) world
+
+        System.Threading.Thread.Sleep(Utils.secs_to_ms @@ Utils.frames_to_secs 1)
+        run {world' with ticks = world.ticks + 1}
+
+
+Engine.makeGame ()
+    |> Engine.run
