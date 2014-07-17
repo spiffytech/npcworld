@@ -38,16 +38,29 @@ module DomainTypes =
 
     type Map = Terrain list list
 
-    // Entities
+    [<Measure>]
+    type m  // Meters
+    [<Measure>]
+    type tick
+
+    type Speed = float<m/tick>
+
+    type MapPoint = {x:float<m>; y:float<m>}
+    type RouteSegment = {start:MapPoint; finish:MapPoint; startTick:int<tick>; eta:int<tick>; speed:Speed}
+    type Path = {start:MapPoint; finish:MapPoint; route:RouteSegment list}
+
+    // BEGIN Entities
     type ID = | ID of string
     type OwnerID = | OwnerID of string
 
-    type Dot = {id:ID; owner:OwnerID; pos:(float * float); speed:float}
-    type SomethingElse = {id:ID; owner:OwnerID; pos:(float * float); speed:float}
-
-    type Entity =
+    type Dot = {id:ID; owner:OwnerID; pos:MapPoint; speed:Speed; path: Path option}
+    type SomethingElse = {id:ID; owner:OwnerID; pos:MapPoint; speed:Speed}
+    type EntitySpecific =
         | EntityDot of Dot
         | EntitySomethingElse of SomethingElse
+
+    type EntityCommon = {id:ID; owner:OwnerID; pos:MapPoint; speed:Speed; path:Path option; specific:EntitySpecific option}
+    // END entities
 
     type Color =
         | Red
@@ -55,7 +68,7 @@ module DomainTypes =
 
     type Agent = {id:OwnerID; color:Color}
 
-    type World = {ticks:int; agents:Agent list; map:Map; entities:Entity list;}
+    type World = {ticks:int<tick>; agents:Agent list; map:Map; entities:EntityCommon list;}
 
 module Simplex =
     let makeNoise octaves persistance scale x y z =
@@ -207,21 +220,48 @@ module Utils =
         list_
             |> List.mapi (fun i el ->
                 match i with
-                | index -> newVal
+                | i when i = index -> newVal
                 | _ -> el
             )
 
     let makeWorldUpdate f =
         [Some f]
 
+module Pathfinder =
+    let timeToDestination start finish currentTick speed =
+        let deltaX = finish.x - start.x
+        let deltaY = finish.y - start.y
+        let distance = sqrt @@ (deltaX*deltaX) + (deltaY*deltaY)
+        let travelTime =
+            distance / speed
+            |> int
+            |> LanguagePrimitives.Int32WithMeasure
+        currentTick + travelTime
+
+    let makeRoute start finish currentTick (speed:Speed) =
+        let speed_ = 1.<m/tick>
+        {
+            Path.start=start;
+            finish=finish; 
+            route=
+                [{
+                    RouteSegment.start=start;
+                    finish=finish;
+                    startTick=currentTick;
+                    speed=speed
+                    eta=timeToDestination start finish currentTick speed_
+                }]
+        }
+
+    let canPath start finish =
+        true
+
 module Agents =
     let makeOwnerID () =
         OwnerID @@ Utils.makeUUID ()
 
     let isMine agent elem =
-        match elem with
-        | EntityDot d -> d.owner = agent.id
-        | EntitySomethingElse s -> s.owner = agent.id
+        elem.owner = agent.id
 
     let hasEntities agent world =
         List.exists (isMine agent) world.entities
@@ -235,15 +275,27 @@ module Agents =
                     newWorld with
                         entities =
                             newWorld.entities @ [
-                                EntityDot {
-                                    Dot.id=ID (Utils.makeUUID ());
+                                {
+                                    EntityCommon.id=ID (Utils.makeUUID ());
                                     owner=agent.id;
-                                    pos=(0.,0.); speed=1.
+                                    pos={MapPoint.x=0.<m>; y=0.<m>}; speed=1.<m/tick>;
+                                    path=None;
+                                    specific=None
                                 }
                             ]
                 }
             )
-        | true -> [None]
+        | true ->
+            Utils.makeWorldUpdate (fun newWorld ->
+                let path = Pathfinder.makeRoute {MapPoint.x=0.<m>; y=0.<m>} {MapPoint.x=1.<m>; y=1.<m>} newWorld.ticks newWorld.entities.[0].speed
+                printfn "%A" path
+                {newWorld with
+                    entities = 
+                        [
+                            {newWorld.entities.[0] with path = Some path}
+                        ]
+                }
+            )
 
 module Engine =
     let initAgents () =
@@ -264,7 +316,7 @@ module Engine =
         debugAgent.Post @@ "Map made"
 
         let agents = initAgents ()
-        let world = {ticks=0; agents=agents; map=map; entities=[]}
+        let world = {ticks=0<tick>; agents=agents; map=map; entities=[]}
         world
 
     let rec run world =
@@ -279,7 +331,7 @@ module Engine =
                 ) world
 
         System.Threading.Thread.Sleep(Utils.secs_to_ms @@ Utils.frames_to_secs 1)
-        run {world' with ticks = world.ticks + 1}
+        run {world' with ticks = world.ticks + 1<tick>}
 
 
 Engine.makeGame ()
